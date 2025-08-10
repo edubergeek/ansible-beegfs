@@ -1,0 +1,143 @@
+- name: Beegfs Storage Volumes
+  hosts: storage
+  become: yes
+  tasks:
+#    - name: Show device information
+#      parted: 
+#        device: "{{ item.device }}"
+#        unit: GiB
+#        state: info
+#      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+#      register: disk_parted
+#
+#    - name: Print device information
+#      debug:
+#        msg: System {{ inventory_hostname }} device {{ item.disk.dev }} size {{ item.disk.size }} partitions {{ item.partitions|length }}
+#      with_items: "{{ disk_parted['results'] }}"
+#
+    - name: Install zfs
+      apt:
+        name:
+          - zfsutils-linux 
+          - zfs-dkms
+        state: present
+
+    - name: Collect disk info
+      parted:
+        device: "{{ item.device }}"
+        unit: GiB
+        state: info
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: item.raid == "RAID"
+
+    - name: Create a new primary partition
+      community.general.parted:
+        device: "{{ item.device }}"
+        number: 1
+        state: present
+        fs_type: xfs
+        part_end: 100%
+        label: gpt
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: item.raid == "RAID"
+
+    - name: Create an XFS filesystem on the new partition
+      community.general.filesystem:
+        fstype: xfs
+        dev: "{{ item.device }}1"
+        state: present
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: item.raid == "RAID"
+
+    - name: Label the XFS filesystem
+      command: xfs_admin -L "{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}" "{{ item.device }}1"
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: item.raid == "RAID"
+
+    - name: Create the mount point for the filesystem
+      file:
+        path: "{{ hostvars[inventory_hostname].st_path }}/{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}"
+        state: directory
+        mode: '0755'
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: item.raid == "RAID"
+
+    - name: Mount the storage target filesystem
+      ansible.posix.mount:
+        path: "{{ hostvars[inventory_hostname].st_path }}/{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}"
+        src: LABEL={{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}
+        fstype: xfs
+        state: present
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: item.raid == "RAID"
+
+    - name: Copy scratch disk script
+      copy:
+        src: ./scripts/mkzfs
+        dest: /tmp/mkzfs
+        mode: 'u=rwx,g=rwx'
+        force: yes
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: item.raid == "ZFS"
+
+    - name: Prepare the script to create zfs pools
+      command:
+        argv:
+        - "/tmp/mkzfs"
+        - "{{ item.device }}"
+        - "{{ hostvars[inventory_hostname].st_pools}}"
+        - "{{ hostvars[inventory_hostname].st_disks}}"
+        - "{{ hostvars[inventory_hostname].st_path }}"
+        - "{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}"
+        - "{{ hostvars[inventory_hostname].st_type}}"
+      with_items: "{{ hostvars[inventory_hostname].st_devices }} "
+      when: item.raid == "ZFS"
+
+    - name: Run the mkzfs script
+      command: "bash /tmp/mkzpool"
+      with_items: "{{ hostvars[inventory_hostname].st_devices }} "
+      when: item.raid == "ZFS"
+
+    - name: Copy the zpool validation script
+      copy:
+        src: ./scripts/ckzfs
+        dest: /tmp/ckzfs
+        mode: 'u=rwx,g=rwx'
+        force: yes
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: item.raid == "ZFS"
+
+    - name: Verify the zpools were created
+      command:
+        argv:
+        - "/tmp/ckzfs"
+        - "{{ hostvars[inventory_hostname].st_pools}}"
+        - "{{ hostvars[inventory_hostname].st_path }}"
+      with_items: "{{ hostvars[inventory_hostname].st_devices }} "
+      when: item.raid == "ZFS"
+
+#    - name: Verify there is a RAID0 zfs pool mounted as /scratch
+#      zfs:
+#        name: "{{ hostvars[inventory_hostname].st_path }}/{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}"
+#        state: present
+#      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+#      when: item.raid == "ZFS"
+#
+# community.general.zpool is still in development and not in the latest branch
+#      community.general.zpool:
+#        name: scratch
+#        mountpoint: /scratch
+#        pool_properties:
+#          ashift: 12
+#          autotrim: on
+#        filesystem_properties:
+#          compression: lz4
+#          dedup: off
+#          checksum: fletcher4
+#          atime: off
+#        vdevs:
+#          - type: stripe
+#            disks:
+#              - "{{ item.device }}"
+#            with_items: "{{ hostvars[inventory_hostname].sv_devices }}"
+

@@ -1,0 +1,9 @@
+ansible_port: 22
+#ansible_user: "{{ lookup('env', 'ANSIBLE_USER') }}"
+ansible_user: beegfs
+ansible_become: true
+ansible_become_method: sudo
+ansible_python_interpreter: /usr/bin/python3
+cluster: beegfs
+beegfs_version: "8.1.0"
+

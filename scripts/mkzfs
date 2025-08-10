@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# add check for 5 arguments
+[ $# = 6 ] || (echo "usage $0 label pools disks path prefix type";exit 1)
+label=$1; shift
+pools=$1; shift
+disks=$1; shift
+path=$1; shift
+prefix=$1; shift
+zpooltype=$1; shift
+
+[ -z "${label}" ] && (echo "usage $0 label pools disks path prefix type";exit 1)
+[ -z "${pools}" ] && (echo "usage $0 label pools disks path prefix type";exit 1)
+[ -z "${disks}" ] && (echo "usage $0 label pools disks path prefix type";exit 1)
+[ -z "${path}" ] && (echo "usage $0 label pools disks path prefix type";exit 1)
+[ -z "${prefix}" ] && (echo "usage $0 label pools disks path prefix type";exit 1)
+[ -z "${zpooltype}" ] && (echo "usage $0 label pools disks path prefix type";exit 1)
+
+mkzpool=/tmp/mkzpool
+echo "#!/bin/bash" >${mkzpool}
+
+for ((start=1, pool=1; pool <= ${pools}; pool+=1, start+=${disks}))
+do
+  diskids=`ls -l /dev/disk/by-id | grep "$label" | tail -n+${start} | head -n ${disks} | awk '{printf("/dev/disk/by-id/%s ", $9)}'`
+  zpool list -o name ${path}${pool} || echo "zpool create -m /${path}/${prefix}${pool} ${path}${pool} ${zpooltype} ${diskids}" >>${mkzpool}
+  zpool list -o name ${path}${pool} || echo "zfs set atime=off ${path}${pool}" >>${mkzpool}
+  zpool list -o name ${path}${pool} || echo "zfs set compression=lz4 ${path}${pool}" >>${mkzpool}
+done
+
+#ssds=`lsblk | grep sd | awk '{print $1,$4}' | grep T | sed -e 's/[0-9]*T//' -e 's:nvme:/dev/nvme:' | sort`
+#hdds=`lsblk | grep sd | awk '{print $1,$4}' | grep T | sed -e 's/[0.-9]*T//' -e 's:sd:/dev/sd:' | sort`
+#echo $ssds
+#echo $hdds
+
+#zpool create -f -m /scratch scratch -o ashift=12 -o autotrim=on $nvmedisks
+#zfs set recordsize=16K scratch
+#zfs set checksum=fletcher4 scratch
+#zfs set atime=off scratch
+#zfs set dedup=off scratch
+#zfs set compression=lz4 scratch
+

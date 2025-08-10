@@ -1,0 +1,61 @@
+san:
+  hosts:
+    st-4x18-1:
+      st_nodeid: "1"
+      st_path: "/beegfs"
+      st_prefix: "st"
+      st_devices: 
+        - { "device": '/dev/sda', "partition": 1, "size": "49.1TiB", "target": "1", "raid": "RAID"}
+    st-4x18-2:
+      st_nodeid: "2"
+      st_path: "/beegfs"
+      st_prefix: "st"
+      st_devices: 
+        - { "device": '/dev/sda', "partition": 1, "size": "49.1TiB", "target": "1", "raid": "RAID"}
+
+suri:
+  hosts:
+    st-12x20-1:
+      st_nodeid: "3"
+      st_path: "beegfs"
+      st_prefix: "st"
+      st_pools: 3
+      st_disks: 4
+      st_type: "raidz1"
+      st_devices: 
+        - { "device": 'STOSHIBA', "partition": 0, "size": "18.2TiB", "target": "", "raid": "ZFS"}
+    st-12x20-2:
+      st_nodeid: "4"
+      st_path: "beegfs"
+      st_prefix: "st"
+      st_pools: 3
+      st_disks: 4
+      st_type: "raidz1"
+      st_devices: 
+        - { "device": 'STOSHIBA', "partition": 0, "size": "18.2TiB", "target": "", "raid": "ZFS"}
+
+beegfs:
+  children:
+    san:
+    suri:
+    mgmt:
+    mon:
+
+storage:
+  children:
+    san:
+    suri:
+
+meta:
+  children:
+    san:
+    suri:
+
+mgmt:
+  hosts:
+    ci1:
+
+mon:
+  hosts:
+    ci2:
+

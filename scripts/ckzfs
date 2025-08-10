@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# add check for 5 arguments
+[ $# = 2 ] || (echo "usage $0 pools path";exit 1)
+pools=$1; shift
+path=$1; shift
+
+[ -z "${pools}" ] && (echo "usage $0 label pools disks path prefix type";exit 1)
+[ -z "${path}" ] && (echo "usage $0 label pools disks path prefix type";exit 1)
+
+for ((pool=1; pool <= ${pools}; pool+=1))
+do
+  zpool list -H ${path}${pool} || exit 1
+done
+exit 0
+
