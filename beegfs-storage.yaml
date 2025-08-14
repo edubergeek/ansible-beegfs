@@ -67,7 +67,7 @@
         path: "{{ hostvars[inventory_hostname].st_path }}/{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}"
         src: LABEL={{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}
         fstype: xfs
-        state: present
+        state: mounted
       with_items: "{{ hostvars[inventory_hostname].st_devices }}"
       when: item.raid == "RAID"
 
@@ -84,16 +84,18 @@
       command:
         argv:
         - "/tmp/mkzfs"
+        - "{{ item.wipedisk }}"
         - "{{ item.device }}"
+        - "{{ item.partition }}"
         - "{{ hostvars[inventory_hostname].st_pools}}"
         - "{{ hostvars[inventory_hostname].st_disks}}"
         - "{{ hostvars[inventory_hostname].st_path }}"
-        - "{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}"
+        - "{{ hostvars[inventory_hostname].st_pool }}"
         - "{{ hostvars[inventory_hostname].st_type}}"
       with_items: "{{ hostvars[inventory_hostname].st_devices }} "
       when: item.raid == "ZFS"
 
-    - name: Run the mkzfs script
+    - name: Run the mkzpool script
       command: "bash /tmp/mkzpool"
       with_items: "{{ hostvars[inventory_hostname].st_devices }} "
       when: item.raid == "ZFS"
@@ -112,7 +114,7 @@
         argv:
         - "/tmp/ckzfs"
         - "{{ hostvars[inventory_hostname].st_pools}}"
-        - "{{ hostvars[inventory_hostname].st_path }}"
+        - "{{ hostvars[inventory_hostname].st_pool }}"
       with_items: "{{ hostvars[inventory_hostname].st_devices }} "
       when: item.raid == "ZFS"
 
