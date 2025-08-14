@@ -1,0 +1,170 @@
+- name: Beegfs Storage Volumes
+  hosts: meta
+  become: yes
+  tasks:
+#    - name: Show device information
+#      parted: 
+#        device: "{{ item.device }}"
+#        unit: GiB
+#        state: info
+#      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+#      register: disk_parted
+#
+#    - name: Print device information
+#      debug:
+#        msg: System {{ inventory_hostname }} device {{ item.disk.dev }} size {{ item.disk.size }} partitions {{ item.partitions|length }}
+#      with_items: "{{ disk_parted['results'] }}"
+#
+    - name: Create a new primary partition for the metadata target
+      community.general.parted:
+        device: "{{ item.device }}"
+        number: "{{ item.partition }}"
+        label: "gpt"
+        state: present
+        fs_type: ext4
+        part_start: "{{ item.start }}"
+        part_end: "{{ item.end }}"
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Create an ext4 filesystem on the new partition
+      community.general.filesystem:
+        fstype: ext4
+        opts: "-b 4096 -I 1024 -J size=400 -O dir_index,filetype"
+        dev: "{{ item.device }}p{{ item.partition }}"
+        state: present
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Label the ext4 filesystem
+      command: "tune2fs -L {{ item.dir }}{{ hostvars[inventory_hostname].mt_nodeid }} {{ item.device }}p{{ item.partition }}"
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Create the directory for the metadata target
+      file:
+        path: "/{{ hostvars[inventory_hostname].mt_path }}/{{ item.dir }}"
+        state: directory
+        mode: '0755'
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Mount the metadata target filesystem
+      ansible.posix.mount:
+        path: "/{{ hostvars[inventory_hostname].mt_path }}/{{ item.dir }}"
+        src: LABEL={{ item.dir }}{{ hostvars[inventory_hostname].mt_nodeid }}
+        fstype: ext4
+        state: mounted
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Create a new primary partition for the sync target
+      community.general.parted:
+        device: "{{ item.device }}"
+        number: "{{ item.syncpart }}"
+        label: "gpt"
+        state: present
+        fs_type: ext4
+        part_start: "{{ item.end }}"
+        part_end: "{{ item.syncend }}"
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Create an ext4 filesystem on the sync partition
+      community.general.filesystem:
+        fstype: ext4
+        opts: "-b 4096 -I 1024 -J size=400 -O dir_index,filetype"
+        dev: "{{ item.device }}p{{ item.syncpart }}"
+        state: present
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Label the ext4 filesystem
+      command: "tune2fs -L {{ item.syncdir }}{{ hostvars[inventory_hostname].mt_nodeid }} {{ item.device }}p{{ item.syncpart }}"
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Create the directory for the sync target
+      file:
+        path: "/{{ hostvars[inventory_hostname].mt_path }}/{{ item.syncdir }}"
+        state: directory
+        mode: '0755'
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Mount the sync target filesystem
+      ansible.posix.mount:
+        path: "/{{ hostvars[inventory_hostname].mt_path }}/{{ item.syncdir }}"
+        src: LABEL={{ item.syncdir }}{{ hostvars[inventory_hostname].mt_nodeid }}
+        fstype: ext4
+        state: mounted
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Install zfs
+      apt:
+        name:
+          - zfsutils-linux 
+          - zfs-dkms
+        state: present
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "MIRROR"
+
+    - name: Create a new primary partition for the zfs device
+      community.general.parted:
+        device: "{{ item.device }}"
+        number: "{{ item.partition }}"
+        label: "gpt"
+        state: present
+        part_start: "{{ item.start }}"
+        part_end: "{{ item.end }}"
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "MIRROR"
+
+    - name: Copy mkzfs script
+      copy:
+        src: ./scripts/mkzfs
+        dest: /tmp/mkzfs
+        mode: 'u=rwx,g=rwx'
+        force: yes
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "MIRROR"
+
+    - name: Prepare the script to create zfs pools
+      command:
+        argv:
+        - "/tmp/mkzfs"
+        - "{{ item.wipedisk }}"
+        - "{{ item.label }}"
+        - "{{ item.partition }}"
+        - "{{ hostvars[inventory_hostname].mt_pools}}"
+        - "{{ hostvars[inventory_hostname].mt_disks}}"
+        - "{{ hostvars[inventory_hostname].mt_path}}"
+        - "{{ hostvars[inventory_hostname].mt_pool}}"
+        - "{{ hostvars[inventory_hostname].mt_type}}"
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }} "
+      when: item.type == "MIRROR"
+
+    - name: Run the mkzpool script
+      command: "bash /tmp/mkzpool"
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }} "
+      when: item.type == "MIRROR"
+
+    - name: Copy the zpool validation script
+      copy:
+        src: ./scripts/ckzfs
+        dest: /tmp/ckzfs
+        mode: 'u=rwx,g=rwx'
+        force: yes
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "MIRROR"
+
+    - name: Verify the zpools were created
+      command:
+        argv:
+        - "/tmp/ckzfs"
+        - "{{ hostvars[inventory_hostname].mt_pools}}"
+        - "{{ hostvars[inventory_hostname].mt_pool }}"
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }} "
+      when: item.type == "MIRROR"
+
