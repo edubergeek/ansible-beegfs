@@ -24,6 +24,7 @@ san:
 suri:
   hosts:
     st-12x20-1:
+      st_nodeid: "3"
       st_path: "/beegfs/st3"
       st_pool: "beegfs"
       st_pools: 3
@@ -31,6 +32,7 @@ suri:
       st_type: "raidz1"
       st_devices: 
         - { "device": 'STOSHIBA', "partition": 0, "size": "18.2TiB", "wipedisk": "no", "target": "", "raid": "ZFS"}
+      mt_nodeid: "3"
       mt_path: "/beegfs/meta"
       mt_pool: "meta"
       mt_pools: 1
@@ -40,6 +42,7 @@ suri:
         - { "device": "/dev/nvme0n1", "partition": 3, "start": "162GB", "end": "1024GB", "wipedisk": "no", "label": "SOLIDIGM", "type": "MIRROR"}
         - { "device": "/dev/nvme1n1", "partition": 3, "start": "162GB", "end": "1024GB", "wipedisk": "no", "label": "SOLIDIGM", "type": "MIRROR"}
     st-12x20-2:
+      st_nodeid: "4"
       st_path: "/beegfs/st4"
       st_pools: 3
       st_pool: "beegfs"
@@ -47,6 +50,7 @@ suri:
       st_type: "raidz1"
       st_devices:
         - { "device": 'STOSHIBA', "partition": 0, "size": "18.2TiB", "wipedisk": "no", "target": "", "raid": "ZFS"}
+      mt_nodeid: "4"
       mt_path: "/beegfs/meta"
       mt_pool: "meta"
       mt_pools: 1
@@ -63,6 +67,12 @@ beegfs:
     mgmt:
     mon:
 
+compose:
+  children:
+    mgmt:
+    san:
+    suri:
+
 storage:
   children:
     san:
@@ -76,6 +86,10 @@ meta:
 mgmt:
   hosts:
     ci1:
+      mg_nodeid: "1"
+      mg_path: "beegfs"
+      mg_devices: 
+        - { "device": "/dev/nvme0n1", "dir": 'mgmt', "partition": 3, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
 
 mon:
   hosts:
