@@ -1,0 +1,184 @@
+---
+- hosts: beegfs
+  become: yes
+
+  tasks:
+    - name: Update and upgrade APT packages
+      apt:
+        update_cache: yes
+        force_apt_get: true
+        cache_valid_time: 3600
+
+    - name: Update all Debian/Ubuntu packages to their latest version
+      apt:
+        name: "*"
+        force_apt_get: true
+        state: latest
+
+    - name: Check if a reboot is needed for Debian and Ubuntu boxes
+      stat: 
+        path=/var/run/reboot-required
+      register: reboot_required_file
+
+    - name: Reboot the Debian or Ubuntu server if required
+      reboot:
+        msg: "Reboot initiated by Ansible due to kernel updates"
+        connect_timeout: 5
+        reboot_timeout: 300
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+        test_command: uptime
+      when: reboot_required_file.stat.exists
+
+    - name: Install Docker prerequisites
+      apt:
+        name: 
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        force_apt_get: true
+        state: present
+
+    - name: Add Docker's official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Dearmor GPG key
+      command:
+        cmd: "gpg --dearmor -o {{ keyrings_dir }}/{{ key_name }}.gpg"
+      args:
+        creates: "{{ keyrings_dir }}/{{ key_name }}.gpg"
+      vars:
+        keyrings_dir: "/usr/share/keyrings"
+        key_name: "docker"
+
+    - name: Set up Docker stable repository
+      apt_repository:
+        repo: deb [arch=amd64 signed-by={{ keyrings_dir }}/{{ key_name }}.gpg] https://download.docker.com/linux/ubuntu "{{ ansible_distribution_release }}" stable
+        state: present
+        filename: docker
+      vars:
+        keyrings_dir: "/usr/share/keyrings"
+        key_name: "docker"
+
+    - name: Update APT package index after adding Docker repository
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install Docker CE
+      apt:
+        name: docker-ce
+        state: present
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Add user to the Docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Gather package facts
+      package_facts:
+        manager: auto # Automatically detect the package manager
+
+    - name: Remove timesyncd if installed
+      apt:
+        name: systemd-timesyncd
+        state: absent
+      when: "'systemd-timesyncd' not in ansible_facts.packages"
+
+    - name: Install ntp if not installed
+      apt:
+        name: ntp
+        state: present
+      when: "'ntp' not in ansible_facts.packages"
+
+    - name: Configure NTP
+      copy:
+        src: files/ntp.conf
+        dest: /etc/ntpsec/ntp.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        - ansible_facts['distribution'] == "Ubuntu"
+        - ansible_facts['distribution_version'] == "24.04"
+
+    - name: Configure NTP
+      copy:
+        src: files/ntp.conf
+        dest: /etc/ntp.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        - ansible_facts['distribution'] == "Ubuntu"
+        - ansible_facts['distribution_version'] == "22.04"
+
+    - name: Start NTP service and enable to start on boot
+      service:
+        name: ntp
+        state: restarted
+        enabled: yes
+
+    - name: Download InfluxDB's official GPG key
+      get_url:
+        url: https://repos.influxdata.com/influxdata-archive_compat.key
+        dest: /tmp/influxdata-archive_compat
+        mode: '0644'
+        checksum: "sha256:393e8779c89ac8d958f81f942f9ad7fb82a25e133faddaf92e15b16e6ac9ce4c"
+
+    - name: Dearmor InfluxDB's GPG key
+      command:
+        cmd: "gpg --dearmor /tmp/influxdata-archive_compat"
+        creates: /tmp/influxdata-archive_compat.gpg
+
+    - name: Install the InfluxDB GPG key
+      command:
+        cmd: "mv /tmp/influxdata-archive_compat.gpg /etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg"
+        creates: /etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg
+
+    - name: Set up InfluxDB repository
+      apt_repository:
+        repo: deb [signed-by=/etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg] https://repos.influxdata.com/debian stable main
+        state: present
+        filename: influxdata
+
+    - name: Update APT package index after adding Influxdb repository
+      apt:
+        update_cache: yes
+        cache_valid_time: 0
+
+    - name: Install Telegraf
+      apt:
+        name: 
+          - telegraf
+        state: present
+
+#    - name: Configure Telegraf
+#      template:
+#        src: telegraf.conf.j2
+#        dest: /etc/telegraf/telegraf.conf
+#      notify: Restart Telegraf
+#
+#    - name: Start Telegraf as service and enable to start on boot
+#      service:
+#        name: telegraf
+#        state: started
+#        enabled: yes
+#
+##    - name: Install apps for Beegfs backups
+##      apt:
+##        name: 
+##          - lftp
+##          - cron
+##        state: present
+##
