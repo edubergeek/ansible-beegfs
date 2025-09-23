@@ -1,0 +1,39 @@
+- name: Beegfs Management
+  hosts: mgmt
+  become: yes
+  tasks:
+    - name: Start the mgmtd docker container
+      command:
+        chdir: "/usr/local/src/beegfs/mgmt"
+        argv:
+        - "docker"
+        - "compose"
+        - "up"
+        - "-d"
+
+- name: Beegfs Meta
+  hosts: meta
+  become: yes
+  tasks:
+    - name: Start the meta docker container
+      command:
+        chdir: "/usr/local/src/beegfs/meta"
+        argv:
+        - "docker"
+        - "compose"
+        - "up"
+        - "-d"
+
+- name: Beegfs Storage
+  hosts: storage
+  become: yes
+  tasks:
+    - name: Start the storage docker container
+      command:
+        chdir: "/usr/local/src/beegfs/storage"
+        argv:
+        - "docker"
+        - "compose"
+        - "up"
+        - "-d"
+
