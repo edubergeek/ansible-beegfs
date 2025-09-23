@@ -118,28 +118,19 @@
       with_items: "{{ hostvars[inventory_hostname].st_devices }} "
       when: item.raid == "ZFS"
 
-#    - name: Verify there is a RAID0 zfs pool mounted as /scratch
-#      zfs:
-#        name: "{{ hostvars[inventory_hostname].st_path }}/{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}"
-#        state: present
-#      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
-#      when: item.raid == "ZFS"
-#
-# community.general.zpool is still in development and not in the latest branch
-#      community.general.zpool:
-#        name: scratch
-#        mountpoint: /scratch
-#        pool_properties:
-#          ashift: 12
-#          autotrim: on
-#        filesystem_properties:
-#          compression: lz4
-#          dedup: off
-#          checksum: fletcher4
-#          atime: off
-#        vdevs:
-#          - type: stripe
-#            disks:
-#              - "{{ item.device }}"
-#            with_items: "{{ hostvars[inventory_hostname].sv_devices }}"
+    - name: Copy mkcompose script
+      copy:
+        src: ./scripts/mkcompose
+        dest: /tmp/mkcompose
+        mode: 'u=rwx,g=rwx'
+        force: yes
+
+    - name: Run the mkcompose script to create the docker-compose.yaml file
+      command:
+        argv:
+        - "/tmp/mkcompose"
+        - "{{ beegfs_version }}"
+        - "{{ beegfs_secret }}"
+        - "{{ hostvars[inventory_hostname].st_nodeid }}"
+        - "storage"
 

@@ -168,3 +168,19 @@
       with_items: "{{ hostvars[inventory_hostname].mt_devices }} "
       when: item.type == "MIRROR"
 
+    - name: Copy mkcompose script
+      copy:
+        src: ./scripts/mkcompose
+        dest: /tmp/mkcompose
+        mode: 'u=rwx,g=rwx'
+        force: yes
+
+    - name: Run the mkcompose script to create the docker-compose.yaml file
+      command:
+        argv:
+        - "/tmp/mkcompose"
+        - "{{ beegfs_version }}"
+        - "{{ beegfs_secret }}"
+        - "{{ hostvars[inventory_hostname].mt_nodeid }}"
+        - "meta"
+

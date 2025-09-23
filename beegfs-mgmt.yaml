@@ -1,0 +1,54 @@
+- name: Beegfs Management storage
+  hosts: mgmt
+  become: yes
+  tasks:
+#    - name: Show device information
+#      parted: 
+#        device: "{{ item.device }}"
+#        unit: GiB
+#        state: info
+#      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+#      register: disk_parted
+#
+#    - name: Print device information
+#      debug:
+#        msg: System {{ inventory_hostname }} device {{ item.disk.dev }} size {{ item.disk.size }} partitions {{ item.partitions|length }}
+#      with_items: "{{ disk_parted['results'] }}"
+#
+
+    - name: Create the directory for the management data
+      file:
+        path: "/{{ hostvars[inventory_hostname].mg_path }}/{{ item.dir }}"
+        state: directory
+        mode: '0755'
+      with_items: "{{ hostvars[inventory_hostname].mg_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Create the directory for the sync target
+      file:
+        path: "/{{ hostvars[inventory_hostname].mg_path }}/{{ item.syncdir }}"
+        state: directory
+        mode: '0755'
+      with_items: "{{ hostvars[inventory_hostname].mg_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Copy mkcompose script
+      copy:
+        src: ./scripts/mkcompose
+        dest: /tmp/mkcompose
+        mode: 'u=rwx,g=rwx'
+        force: yes
+      with_items: "{{ hostvars[inventory_hostname].mg_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Run the mkcompose script to create the docker-compose.yaml file
+      command:
+        argv:
+        - "/tmp/mkcompose"
+        - "{{ beegfs_version }}"
+        - "{{ beegfs_secret }}"
+        - "0"
+        - "mgmt"
+      with_items: "{{ hostvars[inventory_hostname].mg_devices }} "
+      when: item.type == "SYNC"
+
