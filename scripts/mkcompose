@@ -1,0 +1,160 @@
+#!/bin/bash
+
+COMPOSE_FILE=docker-compose.yaml
+BEEGFS_VERSION="$1"
+shift
+BEEGFS_PREFIX=10.19
+BEEGFS_MGMT_HOST=10.19.0.20
+BEEGFS_SECRET="$1"
+shift
+BEEGFS_NODEID="$1"
+shift
+COMPOSE_PATH=/usr/local/src/beegfs/$1
+
+beegfs_interface()
+{
+  ip addr >ipaddr
+  ed ipaddr <<EOF >ipiface
+/$1
+?^[0-9]*:
+s/^[0-9]*: \(.*\): .*\$/\\1/
+p
+q
+q
+EOF
+  tail -n+4 ipiface | head -n1
+}
+
+BEEGFS_INTERFACES=`beegfs_interface $BEEGFS_PREFIX`
+
+compose_mgmt()
+{
+  datapath=`test -d /beegfs/mgmt && echo /beegfs/mgmt`
+  syncpath=`test -d /beegfs/sync && echo /beegfs/sync`
+  cat <<EOF >>$COMPOSE_FILE
+  beegfs-mgmtd:
+    container_name: beegfs-mgmtd
+    image: ghcr.io/thinkparq/beegfs-mgmtd:$BEEGFS_VERSION
+    privileged: true
+    command: "--db-file /data/mgmt/mgmtd.sqlite  --interfaces $BEEGFS_INTERFACES --log-target stderr --tls-disable true"
+    environment:
+      - beegfs_setup_1=beegfs-mgmtd --init --db-file /data/mgmt/mgmtd.sqlite  --log-target stderr
+      - CONN_AUTH_FILE_DATA=$BEEGFS_SECRET
+    volumes:
+      - $datapath:/data/mgmt
+    network_mode: "host"
+    cap_add:
+      - IPC_LOCK
+    devices:
+      - /dev/infiniband/rdma_cm
+      - /dev/infiniband/uverbs0
+      - /dev/infiniband/uverbs1
+    restart: unless-stopped
+
+EOF
+#  beegfs-sync:
+#    image: justb4/cron
+#    container_name: beegfs-sync
+#    volumes:
+#      - ./mgmt-crontab:/etc/cron.d/crontab
+#      - ./mgmt-sync.sh:/scripts/mgmt-sync.sh
+#    restart: unless-stopped
+#    depends_on:
+#      - beegfs-mgmtd
+#
+}
+
+compose_meta()
+{
+  datapath=`test -d /beegfs/meta && echo /beegfs/meta`
+  case "$datapath" in
+  "") datapath=`test -d /beegfs/meta1 && echo /beegfs/meta1` ;;
+  esac
+  syncpath=`test -d /beegfs/sync && echo /beegfs/sync`
+  cat <<EOF >>$COMPOSE_FILE
+  beegfs-meta:
+    image: ghcr.io/thinkparq/beegfs-meta:$BEEGFS_VERSION
+    container_name: beegfs-meta
+    privileged: true
+    command: "storeMetaDirectory=/data/meta storeAllowFirstRunInit=false connInterfacesList=$BEEGFS_INTERFACES sysMgmtdHost=$BEEGFS_MGMT_HOST"
+    environment:
+      - beegfs_setup_1=beegfs-setup-meta -C -p /data/meta -s $BEEGFS_NODEID -S meta
+      - CONN_AUTH_FILE_DATA=$BEEGFS_SECRET
+    network_mode: "host"
+    volumes:
+      - $datapath:/data/meta
+      #- /beegfs/connauthfile:/etc/beegfs/conn.auth
+EOF
+}
+
+storage_targets()
+{
+  tid=1
+  ls /beegfs | grep st | while read target
+    do
+      echo /data/$target
+    done | tr '\n' ',' | sed -e 's/,$//'
+}
+
+storage_setup()
+{
+  ls /beegfs | grep st | while read target
+    do
+      tid=`expr "$target" : 'st[0-9]\([0-9]\)'`
+      echo "      - beegfs_setup_${tid}=beegfs-setup-storage -C -p /data/$target -s $BEEGFS_NODEID -S $target -i ${BEEGFS_NODEID}${tid}" >>$COMPOSE_FILE
+    done
+}
+
+storage_map()
+{
+  tid=1
+  ls /beegfs | grep st | while read target
+    do
+      echo "      - /beegfs/$target:/data/$target" >>$COMPOSE_FILE
+    done
+}
+
+compose_storage()
+{
+  BEEGFS_STORAGETARGETS=`storage_targets`
+  cat <<EOF >>$COMPOSE_FILE
+  beegfs-storage:
+    image: ghcr.io/thinkparq/beegfs-storage:$BEEGFS_VERSION
+    container_name: beegfs-storage
+    privileged: true    
+    command: "storeStorageDirectory=$BEEGFS_STORAGETARGETS storeAllowFirstRunInit=false connInterfacesList=$BEEGFS_INTERFACES sysMgmtdHost=$BEEGFS_MGMT_HOST"
+    environment:
+EOF
+
+  storage_setup
+
+  cat <<EOF >>$COMPOSE_FILE
+      - CONN_AUTH_FILE_DATA=$BEEGFS_SECRET
+
+    network_mode: "host"
+    volumes:
+EOF
+
+  storage_map
+
+  cat <<EOF >>$COMPOSE_FILE
+      # - /beegfs/connauthfile:/etc/beegfs/conn.auth
+EOF
+}
+
+mkdir -p $COMPOSE_PATH
+cd $COMPOSE_PATH
+
+cat <<EOF >$COMPOSE_FILE
+version: '3'
+services:
+
+EOF
+
+case $1 in
+mgmt) compose_mgmt >>$COMPOSE_FILE ;;
+meta) compose_meta >>$COMPOSE_FILE ;;
+storage) compose_storage >>$COMPOSE_FILE ;;
+esac
+
+exit 0
