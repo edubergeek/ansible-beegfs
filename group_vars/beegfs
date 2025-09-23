@@ -6,4 +6,5 @@ ansible_become_method: sudo
 ansible_python_interpreter: /usr/bin/python3
 cluster: beegfs
 beegfs_version: "8.1.0"
+beegfs_secret: "{{ lookup('env', 'BEEGFS_SECRET') }}"
 
