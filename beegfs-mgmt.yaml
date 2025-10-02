@@ -32,6 +32,22 @@
       with_items: "{{ hostvars[inventory_hostname].mg_devices }}"
       when: item.type == "SYNC"
 
+    - name: Create the directory for the beegfs secret
+      file:
+        path: /etc/beegfs
+        state: directory
+        mode: '0750'
+      with_items: "{{ hostvars[inventory_hostname].mg_devices }}"
+      when: item.type == "SYNC"
+
+    - name: Copy security configuration
+      copy:
+        src: files/conn.auth
+        dest: /etc/beegfs/conn.auth
+        owner: root
+        group: root
+        mode: '0600'
+
     - name: Copy mkcompose script
       copy:
         src: ./scripts/mkcompose
@@ -46,9 +62,45 @@
         argv:
         - "/tmp/mkcompose"
         - "{{ beegfs_version }}"
-        - "{{ beegfs_secret }}"
         - "0"
         - "mgmt"
       with_items: "{{ hostvars[inventory_hostname].mg_devices }} "
       when: item.type == "SYNC"
 
+    - name: Remove existing beegfs firewall rules for TCP
+      ufw:
+        rule: allow
+        port: 8003:8010
+        proto: tcp
+        delete: true
+
+    - name: Remove existing beegfs firewall rules for UDP
+      ufw:
+        rule: allow
+        port: 8003:8010
+        proto: udp
+        delete: true
+
+    - name: Add beegfs firewall rules for TCP
+      ufw:
+        rule: allow
+        port: 8003:8010
+        proto: tcp
+        src: '{{ item }}'
+      loop:
+        - 10.88.0.0/16
+        - 10.19.0.0/16
+
+    - name: Add beegfs firewall rules for UDP
+      ufw:
+        rule: allow
+        port: 8003:8010
+        proto: udp
+        src: '{{ item }}'
+      loop:
+        - 10.88.0.0/16
+        - 10.19.0.0/16
+
+    - name: Enable ufw
+      ufw:
+        state: enabled
