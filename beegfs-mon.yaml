@@ -1,0 +1,27 @@
+- name: Beegfs Management storage
+  hosts: mon
+  become: yes
+  tasks:
+#    - name: Show device information
+#      parted: 
+#        device: "{{ item.device }}"
+#        unit: GiB
+#        state: info
+#      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+#      register: disk_parted
+#
+#    - name: Print device information
+#      debug:
+#        msg: System {{ inventory_hostname }} device {{ item.disk.dev }} size {{ item.disk.size }} partitions {{ item.partitions|length }}
+#      with_items: "{{ disk_parted['results'] }}"
+#
+
+    - name: Create the directory for monitor data
+      file:
+        path: "/{{ hostvars[inventory_hostname].mg_path }}/{{ item.dir }}"
+        state: directory
+        mode: '0755'
+      with_items: "{{ hostvars[inventory_hostname].mg_devices }}"
+      when: item.type == "SYNC"
+
+
