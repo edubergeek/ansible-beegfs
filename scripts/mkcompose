@@ -5,8 +5,6 @@ BEEGFS_VERSION="$1"
 shift
 BEEGFS_PREFIX=10.19
 BEEGFS_MGMT_HOST=10.19.0.20
-BEEGFS_SECRET="$1"
-shift
 BEEGFS_NODEID="$1"
 shift
 COMPOSE_PATH=/usr/local/src/beegfs/$1
@@ -35,13 +33,17 @@ compose_mgmt()
   beegfs-mgmtd:
     container_name: beegfs-mgmtd
     image: ghcr.io/thinkparq/beegfs-mgmtd:$BEEGFS_VERSION
+    ports:
+      - "8008:8008"
+      - "8010:8010"
+      - "8008:8008/udp"
     privileged: true
     command: "--db-file /data/mgmt/mgmtd.sqlite  --interfaces $BEEGFS_INTERFACES --log-target stderr --tls-disable true"
     environment:
       - beegfs_setup_1=beegfs-mgmtd --init --db-file /data/mgmt/mgmtd.sqlite  --log-target stderr
-      - CONN_AUTH_FILE_DATA=$BEEGFS_SECRET
     volumes:
       - $datapath:/data/mgmt
+      - /etc/beegfs/conn.auth:/etc/beegfs/conn.auth
     network_mode: "host"
     cap_add:
       - IPC_LOCK
@@ -76,14 +78,14 @@ compose_meta()
     image: ghcr.io/thinkparq/beegfs-meta:$BEEGFS_VERSION
     container_name: beegfs-meta
     privileged: true
-    command: "storeMetaDirectory=/data/meta storeAllowFirstRunInit=false connInterfacesList=$BEEGFS_INTERFACES sysMgmtdHost=$BEEGFS_MGMT_HOST"
+    command: "storeMetaDirectory=/data/meta storeAllowFirstRunInit=false connInterfacesList=$BEEGFS_INTERFACES sysMgmtdHost=$BEEGFS_MGMT_HOST connAuthFile=/etc/beegfs/conn.auth"
     environment:
       - beegfs_setup_1=beegfs-setup-meta -C -p /data/meta -s $BEEGFS_NODEID -S meta
-      - CONN_AUTH_FILE_DATA=$BEEGFS_SECRET
     network_mode: "host"
     volumes:
       - $datapath:/data/meta
-      #- /beegfs/connauthfile:/etc/beegfs/conn.auth
+      - $datapath:/data/meta
+      - /etc/beegfs/conn.auth:/etc/beegfs/conn.auth
 EOF
 }
 
@@ -122,14 +124,13 @@ compose_storage()
     image: ghcr.io/thinkparq/beegfs-storage:$BEEGFS_VERSION
     container_name: beegfs-storage
     privileged: true    
-    command: "storeStorageDirectory=$BEEGFS_STORAGETARGETS storeAllowFirstRunInit=false connInterfacesList=$BEEGFS_INTERFACES sysMgmtdHost=$BEEGFS_MGMT_HOST"
+    command: "storeStorageDirectory=$BEEGFS_STORAGETARGETS storeAllowFirstRunInit=false connInterfacesList=$BEEGFS_INTERFACES sysMgmtdHost=$BEEGFS_MGMT_HOST connAuthFile=/etc/beegfs/conn.auth"
     environment:
 EOF
 
   storage_setup
 
   cat <<EOF >>$COMPOSE_FILE
-      - CONN_AUTH_FILE_DATA=$BEEGFS_SECRET
 
     network_mode: "host"
     volumes:
@@ -138,12 +139,16 @@ EOF
   storage_map
 
   cat <<EOF >>$COMPOSE_FILE
-      # - /beegfs/connauthfile:/etc/beegfs/conn.auth
+      - /etc/beegfs/conn.auth:/etc/beegfs/conn.auth
 EOF
 }
 
+# create the compose path if it does not exists
 mkdir -p $COMPOSE_PATH
 cd $COMPOSE_PATH
+
+# remote existing docker compse yaml file
+rm -f $COMPOSE_FILE
 
 cat <<EOF >$COMPOSE_FILE
 version: '3'
