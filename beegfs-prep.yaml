@@ -36,6 +36,9 @@
           - apt-transport-https
           - ca-certificates
           - curl
+          - vim
+          - iputils-ping
+          - net-tools
           - software-properties-common
         force_apt_get: true
         state: present
