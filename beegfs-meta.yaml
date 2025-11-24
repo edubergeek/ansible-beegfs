@@ -198,6 +198,13 @@
         group: root
         mode: '0400'
 
+    - name: Copy .env file
+      copy:
+        src: ./scripts/.env
+        dest: /tmp/.env
+        mode: 'u=rw,g=rw'
+        force: yes
+
     - name: Copy mkcompose script
       copy:
         src: ./scripts/mkcompose
@@ -212,6 +219,16 @@
         - "{{ beegfs_version }}"
         - "{{ hostvars[inventory_hostname].mt_nodeid }}"
         - "meta"
+
+#    - name: Remove .env file
+#      file:
+#        path: /tmp/.env
+#        state: absent
+#
+#    - name: Remove mkcompose file
+#      file:
+#        path: /tmp/mkcompose
+#        state: absent
 
     - name: Remove existing beegfs firewall rules for TCP
       ufw:

@@ -1,10 +1,13 @@
 #!/bin/bash
 
 COMPOSE_FILE=docker-compose.yaml
+
+source /tmp/.env
+#BEEGFS_PREFIX=10.19
+#BEEGFS_MGMT_HOST=10.19.0.21
+
 BEEGFS_VERSION="$1"
 shift
-BEEGFS_PREFIX=10.19
-BEEGFS_MGMT_HOST=10.19.0.20
 BEEGFS_NODEID="$1"
 shift
 COMPOSE_PATH=/usr/local/src/beegfs/$1
@@ -38,12 +41,14 @@ compose_mgmt()
       - "8010:8010"
       - "8008:8008/udp"
     privileged: true
-    command: "--db-file /data/mgmt/mgmtd.sqlite  --interfaces $BEEGFS_INTERFACES --log-target stderr --tls-disable true"
+    command: "--db-file /data/mgmt/mgmtd.sqlite  --interfaces $BEEGFS_INTERFACES --log-target stderr --tls-disable false"
     environment:
       - beegfs_setup_1=beegfs-mgmtd --init --db-file /data/mgmt/mgmtd.sqlite  --log-target stderr
     volumes:
       - $datapath:/data/mgmt
       - /etc/beegfs/conn.auth:/etc/beegfs/conn.auth
+      - /etc/beegfs/key.pem:/etc/beegfs/key.pem
+      - /etc/beegfs/cert.pem:/etc/beegfs/cert.pem
     network_mode: "host"
     cap_add:
       - IPC_LOCK
@@ -86,6 +91,8 @@ compose_meta()
       - $datapath:/data/meta
       - $datapath:/data/meta
       - /etc/beegfs/conn.auth:/etc/beegfs/conn.auth
+      - /etc/beegfs/key.pem:/etc/beegfs/key.pem
+      - /etc/beegfs/cert.pem:/etc/beegfs/cert.pem
 EOF
 }
 
@@ -140,6 +147,8 @@ EOF
 
   cat <<EOF >>$COMPOSE_FILE
       - /etc/beegfs/conn.auth:/etc/beegfs/conn.auth
+      - /etc/beegfs/key.pem:/etc/beegfs/key.pem
+      - /etc/beegfs/cert.pem:/etc/beegfs/cert.pem
 EOF
 }
 
