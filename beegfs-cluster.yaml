@@ -85,11 +85,11 @@ meta:
 
 mgmt:
   hosts:
-    ci1:
+    st-4x18-1:
       mg_nodeid: "1"
       mg_path: "beegfs"
       mg_devices: 
-        - { "device": "/dev/nvme0n1", "dir": 'mgmt', "partition": 3, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
+        - { "device": "", "dir": 'mgmt', "partition": 0, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
 
 mon:
   hosts:
