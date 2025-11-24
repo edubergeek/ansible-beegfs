@@ -40,13 +40,29 @@
       with_items: "{{ hostvars[inventory_hostname].mg_devices }}"
       when: item.type == "SYNC"
 
+    - name: Copy TLS cert
+      copy:
+        src: files/cert.pem
+        dest: /etc/beegfs/cert.pem
+        owner: root
+        group: root
+        mode: '0400'
+
+    - name: Copy TLS key
+      copy:
+        src: files/key.pem
+        dest: /etc/beegfs/key.pem
+        owner: root
+        group: root
+        mode: '0400'
+
     - name: Copy security configuration
       copy:
         src: files/conn.auth
         dest: /etc/beegfs/conn.auth
         owner: root
         group: root
-        mode: '0600'
+        mode: '0400'
 
     - name: Copy mkcompose script
       copy:
