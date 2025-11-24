@@ -3,8 +3,6 @@
 COMPOSE_FILE=docker-compose.yaml
 
 source /tmp/.env
-#BEEGFS_PREFIX=10.19
-#BEEGFS_MGMT_HOST=10.19.0.21
 
 BEEGFS_VERSION="$1"
 shift
