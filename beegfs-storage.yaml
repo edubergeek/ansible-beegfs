@@ -2,19 +2,7 @@
   hosts: storage
   become: yes
   tasks:
-#    - name: Show device information
-#      parted: 
-#        device: "{{ item.device }}"
-#        unit: GiB
-#        state: info
-#      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
-#      register: disk_parted
-#
-#    - name: Print device information
-#      debug:
-#        msg: System {{ inventory_hostname }} device {{ item.disk.dev }} size {{ item.disk.size }} partitions {{ item.partitions|length }}
-#      with_items: "{{ disk_parted['results'] }}"
-#
+
     - name: Install zfs
       apt:
         name:
@@ -22,36 +10,27 @@
           - zfs-dkms
           - libzfslinux-dev
         state: present
+      when: beegfs_storage == "ZFS" or beegfs_meta == "ZFS"
 
     - name: Collect disk info
       parted:
-        device: "{{ item.device }}"
+        device: "/dev/disk/by-path/pci-0000:{{ item.scsi }}:00.0-scsi-0:{{ item.port }}:{{ item.drive }}:0"
         unit: GiB
         state: info
-      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
-      when: item.raid == "RAID"
-
-    - name: Create a new primary partition
-      community.general.parted:
-        device: "{{ item.device }}"
-        number: 1
-        state: present
-        fs_type: xfs
-        part_end: 100%
-        label: gpt
       with_items: "{{ hostvars[inventory_hostname].st_devices }}"
       when: item.raid == "RAID"
 
     - name: Create an XFS filesystem on the new partition
       community.general.filesystem:
         fstype: xfs
-        dev: "{{ item.device }}1"
+        #dev: "{{ item.device }}1"
+        dev: "/dev/disk/by-path/pci-0000:{{ item.scsi }}:00.0-scsi-0:{{ item.port }}:{{ item.drive }}:0-part1"
         state: present
       with_items: "{{ hostvars[inventory_hostname].st_devices }}"
       when: item.raid == "RAID"
 
     - name: Label the XFS filesystem
-      command: xfs_admin -L "{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}" "{{ item.device }}1"
+      command: xfs_admin -L "{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}" "/dev/disk/by-path/pci-0000:{{ item.scsi }}:00.0-scsi-0:{{ item.port }}:{{ item.drive }}:0-part1"
       with_items: "{{ hostvars[inventory_hostname].st_devices }}"
       when: item.raid == "RAID"
 
@@ -171,30 +150,30 @@
         - "{{ hostvars[inventory_hostname].st_nodeid }}"
         - "storage"
 
-#    - name: Remove .env file
-#      file:
-#        path: /tmp/.env
-#        state: absent
+##    - name: Remove .env file
+##      file:
+##        path: /tmp/.env
+##        state: absent
+##
+##    - name: Remove mkcompose file
+##      file:
+##        path: /tmp/mkcompose
+##        state: absent
 #
-#    - name: Remove mkcompose file
-#      file:
-#        path: /tmp/mkcompose
-#        state: absent
-
-    - name: Remove existing beegfs firewall rules for TCP
-      ufw:
-        rule: allow
-        port: 8003:8010
-        proto: tcp
-        delete: true
-
-    - name: Remove existing beegfs firewall rules for UDP
-      ufw:
-        rule: allow
-        port: 8003:8010
-        proto: udp
-        delete: true
-
+#    - name: Remove existing beegfs firewall rules for TCP
+#      ufw:
+#        rule: allow
+#        port: 8003:8010
+#        proto: tcp
+#        delete: true
+#
+#    - name: Remove existing beegfs firewall rules for UDP
+#      ufw:
+#        rule: allow
+#        port: 8003:8010
+#        proto: udp
+#        delete: true
+#
     - name: Add beegfs firewall rules for TCP
       ufw:
         rule: allow
@@ -204,6 +183,7 @@
       loop:
         - 10.88.0.0/16
         - 10.19.0.0/16
+      when: ansible_os_family == "Debian"
 
     - name: Add beegfs firewall rules for UDP
       ufw:
@@ -214,8 +194,38 @@
       loop:
         - 10.88.0.0/16
         - 10.19.0.0/16
-
+      when: ansible_os_family == "Debian"
 
     - name: Enable ufw
       ufw:
         state: enabled
+      when: ansible_os_family == "Debian"
+
+    - name: Add beegfs firewall rules for TCP
+      firewalld:
+        state: enabled
+        permanent: true
+        immediate: true
+        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="8003-8010" protocol="tcp" accept'
+      loop:
+        - 10.88.0.0/16
+        - 10.15.0.0/16
+      when: ansible_os_family == "RedHat"
+
+    - name: Add beegfs firewall rules for UDP
+      firewalld:
+        state: enabled
+        permanent: true
+        immediate: true
+        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="8003-8010" protocol="udp" accept'
+      loop:
+        - 10.88.0.0/16
+        - 10.15.0.0/16
+      when: ansible_os_family == "RedHat"
+
+    - name: Enable firewall
+      service:
+        name: firewalld
+        enabled: true
+        state: started
+      when: ansible_os_family == "RedHat"

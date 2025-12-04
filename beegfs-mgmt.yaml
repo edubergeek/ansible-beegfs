@@ -106,6 +106,7 @@
         port: 8003:8010
         proto: tcp
         delete: true
+      when: ansible_os_family == "Debian"
 
     - name: Remove existing beegfs firewall rules for UDP
       ufw:
@@ -113,6 +114,7 @@
         port: 8003:8010
         proto: udp
         delete: true
+      when: ansible_os_family == "Debian"
 
     - name: Add beegfs firewall rules for TCP
       ufw:
@@ -123,6 +125,7 @@
       loop:
         - 10.88.0.0/16
         - 10.19.0.0/16
+      when: ansible_os_family == "Debian"
 
     - name: Add beegfs firewall rules for UDP
       ufw:
@@ -133,7 +136,50 @@
       loop:
         - 10.88.0.0/16
         - 10.19.0.0/16
+      when: ansible_os_family == "Debian"
 
     - name: Enable ufw
       ufw:
         state: enabled
+      when: ansible_os_family == "Debian"
+
+    - name: Add beegfs firewall rules for TCP
+      firewalld:
+        state: enabled
+        permanent: true
+        immediate: true
+        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="8003-8010" protocol="tcp" accept'
+      loop:
+        - 10.88.0.0/16
+        - 10.15.0.0/16
+      when: ansible_os_family == "RedHat"
+
+    - name: Add beegfs firewall rules for UDP
+      firewalld:
+        state: enabled
+        permanent: true
+        immediate: true
+        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="8003-8010" protocol="udp" accept'
+      loop:
+        - 10.88.0.0/16
+        - 10.15.0.0/16
+      when: ansible_os_family == "RedHat"
+
+#    - name: Add beegfs firewall rules for TCP
+#      firewalld:
+#        state: enabled
+#        permanent: true
+#        immediate: true
+#        port: 8003-8010/tcp
+#        source: '{{ item }}'
+#      loop:
+#        - 10.88.0.0/16
+#        - 10.15.0.0/16
+#      when: ansible_os_family == "RedHat"
+#
+    - name: Enable firewall
+      service:
+        name: firewalld
+        enabled: true
+        state: started
+      when: ansible_os_family == "RedHat"
