@@ -1,0 +1,17 @@
+- name: Beegfs Show Host Info
+  hosts: tess
+  become: yes
+  tasks:
+    - name: Show device information
+      parted: 
+        device: "{{ item.device }}"
+        unit: GiB
+        state: info
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      register: disk_parted
+
+    - name: Print device information
+      debug:
+        msg: System {{ inventory_hostname }} device {{ item.disk.dev }} size {{ item.disk.size }} partitions {{ item.partitions|length }}
+      with_items: "{{ disk_parted['results'] }}"
+
