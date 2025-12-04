@@ -1,0 +1,230 @@
+---
+- name: Prepare Linux Host (Docker, NTP, Telegraf)
+  hosts: beegfs
+  become: true
+  vars:
+    # default timeout for reboot
+    reboot_timeout_sec: 300
+
+  tasks:
+    # ---------------------------------------------------------
+    # 1. SYSTEM UPDATES & REBOOT
+    # ---------------------------------------------------------
+    - name: Update apt cache and upgrade dist (Debian/Ubuntu)
+      apt:
+        update_cache: yes
+        upgrade: dist
+      when: ansible_os_family == "Debian"
+      register: debian_update
+
+    - name: Update all packages (RedHat/CentOS)
+      dnf:
+        name: "*"
+        state: latest
+        update_cache: true
+      when: ansible_os_family == "RedHat"
+      register: redhat_update
+
+    - name: Reboot host if updates were installed
+      reboot:
+        reboot_timeout: "{{ reboot_timeout_sec }}"
+        msg: "Rebooting due to system updates"
+      when: (debian_update.changed) or (redhat_update.changed)
+
+    # ---------------------------------------------------------
+    # 2. NTP CONFIGURATION (Replace chronyd/timesyncd)
+    # ---------------------------------------------------------
+    - name: Ensure conflicting time services are stopped and removed
+      package:
+        name:
+          - systemd-timesyncd
+        state: absent
+      when: ansible_os_family == "Debian"
+
+    - name: Install NTP
+      package:
+        name: ntp
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install Chrony
+      package:
+        name: chrony
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Configure NTP
+      copy:
+        src: files/ntp.conf
+        dest: /etc/ntpsec/ntp.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        - ansible_facts['distribution'] == "Ubuntu"
+        - ansible_facts['distribution_version'] == "24.04"
+
+    - name: Configure NTP
+      copy:
+        src: files/ntp.conf
+        dest: /etc/ntp.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        - ansible_facts['distribution'] == "Ubuntu"
+        - ansible_facts['distribution_version'] == "22.04"
+
+    - name: Configure Chrony
+      copy:
+        src: files/chrony.conf
+        dest: /etc/chrony.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        - ansible_os_family == "RedHat"
+
+    - name: Ensure NTP service is started and enabled
+      service:
+        name: ntp
+        state: started
+        enabled: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure Chronyd service is started and enabled
+      service:
+        name: chronyd
+        state: started
+        enabled: yes
+      when: ansible_os_family == "RedHat"
+
+    # ---------------------------------------------------------
+    # 3a. OS Tools INSTALLATION
+    # ---------------------------------------------------------
+    # --- Debian/Ubuntu Specific OS Setup ---
+    - name: Install OS Tools (Debian/Ubuntu)
+      apt:
+        name:
+          - vim
+          - iputils-ping
+          - net-tools
+          - software-properties-common
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install OS Tools (RedHat/Rocky)
+      dnf:
+        name:
+          - vim
+          - iputils
+          - net-tools
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "RedHat"
+
+    # ---------------------------------------------------------
+    # 3. DOCKER CE INSTALLATION
+    # ---------------------------------------------------------
+    # --- Debian/Ubuntu Specific Docker Setup ---
+    - name: Install Docker prerequisites (Debian/Ubuntu)
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Add Docker GPG key (Debian/Ubuntu)
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Add Docker repository (Debian/Ubuntu)
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+      when: ansible_os_family == "Debian"
+
+    # --- RedHat/CentOS Specific Docker Setup ---
+    - name: Install Docker prerequisites (RedHat/CentOS)
+      dnf:
+        name: dnf-plugins-core
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Add Docker CE repository (RedHat/CentOS)
+      get_url:
+        url: https://download.docker.com/linux/centos/docker-ce.repo
+        dest: /etc/yum.repos.d/docker-ce.repo
+      when: ansible_os_family == "RedHat"
+
+    # --- Common Docker Install ---
+    - name: Install Docker CE (Common)
+      package:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Ensure Docker service is started and enabled
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ansible_user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+      # Fails nicely if ansible_user isn't defined, or use 'lookup' to find current user
+      when: ansible_user is defined
+
+    # ---------------------------------------------------------
+    # 4. TELEGRAF INSTALLATION
+    # ---------------------------------------------------------
+    # --- Debian/Ubuntu Telegraf Setup ---
+    - name: Add InfluxData GPG key (Debian/Ubuntu)
+      apt_key:
+        url: https://repos.influxdata.com/influxdata-archive_compat.key
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Add InfluxData repository (Debian/Ubuntu)
+      apt_repository:
+        repo: "deb https://repos.influxdata.com/{{ ansible_distribution | lower }} stable main"
+        state: present
+      when: ansible_os_family == "Debian"
+
+    # --- RedHat/CentOS Telegraf Setup ---
+    - name: Add InfluxData repository (RedHat/CentOS)
+      yum_repository:
+        name: influxdb
+        description: InfluxDB Repository
+        baseurl: https://repos.influxdata.com/rhel/$releasever/$basearch/stable
+        gpgcheck: yes
+        gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
+        enabled: yes
+      when: ansible_os_family == "RedHat"
+
+    # --- Common Telegraf Install ---
+    - name: Install Telegraf
+      package:
+        name: telegraf
+        state: present
+
+#    - name: Ensure Telegraf service is started and enabled
+#      service:
+#        name: telegraf
+#        state: started
+#        enabled: yes
