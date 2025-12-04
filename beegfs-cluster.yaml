@@ -1,91 +1,60 @@
-san:
+tess:
   hosts:
-    st-4x18-1:
+    as-bg01:
       st_nodeid: "1"
       st_path: "/beegfs"
       st_prefix: "st"
+      id_pattern: "pci-0000:${scsi}:00.0-scsi-0:${port}:${drive}:0"
       st_devices: 
-        - { "device": '/dev/sda', "partition": 1, "size": "49.1TiB", "wipedisk": "no", "target": "1", "raid": "RAID"}
+        - { "device": '/dev/sdb', "scsi": 'af', "port": "3", "drive": "106", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "1", "raid": "RAID"}
+        - { "device": '/dev/sdc', "scsi": 'af', "port": "3", "drive": "107", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "2", "raid": "RAID"}
+        - { "device": '/dev/sdd', "scsi": 'af', "port": "3", "drive": "108", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "3", "raid": "RAID"}
+        - { "device": '/dev/sde', "scsi": 'af', "port": "3", "drive": "109", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "4", "raid": "RAID"}
+        - { "device": '/dev/sdf', "scsi": 'af', "port": "3", "drive": "110", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "5", "raid": "RAID"}
+        - { "device": '/dev/sdg', "scsi": 'af', "port": "3", "drive": "111", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "6", "raid": "RAID"}
       mt_nodeid: "1"
       mt_path: "beegfs"
       mt_devices: 
-        - { "device": "/dev/nvme0n1", "dir": 'meta', "partition": 3, "start": "270GB", "end": "635GB", "syncdir": "sync", "syncpart": 4, "syncend": "1000GB", "type": "SYNC"}
-    st-4x18-2:
+        - { "device": "", "dir": 'meta', "partition": 0, "start": "-", "end": "-", "syncdir": "", "syncpart": 0, "syncend": "-", "type": "RAID"}
+    as-bg02:
       st_nodeid: "2"
       st_path: "/beegfs"
       st_prefix: "st"
+      id_pattern: "pci-0000:${scsi}:00.0-scsi-0:${port}:${drive}:0"
       st_devices: 
-        - { "device": '/dev/sda', "partition": 1, "size": "49.1TiB", "wipedisk": "no", "target": "1", "raid": "RAID"}
+        - { "device": '/dev/sde', "scsi": 'af', "port": "3", "drive": "106", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "1", "raid": "RAID"}
+        - { "device": '/dev/sdb', "scsi": 'af', "port": "3", "drive": "107", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "2", "raid": "RAID"}
+        - { "device": '/dev/sdg', "scsi": 'af', "port": "3", "drive": "108", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "3", "raid": "RAID"}
+        - { "device": '/dev/sdd', "scsi": 'af', "port": "3", "drive": "109", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "4", "raid": "RAID"}
+        - { "device": '/dev/sdc', "scsi": 'af', "port": "3", "drive": "110", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "5", "raid": "RAID"}
+        - { "device": '/dev/sda', "scsi": 'af', "port": "3", "drive": "111", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "6", "raid": "RAID"}
       mt_nodeid: "2"
       mt_path: "beegfs"
       mt_devices: 
-        - { "device": "/dev/nvme0n1", "dir": 'meta', "partition": 3, "start": "270GB", "end": "635GB", "syncdir": "sync", "syncpart": 4, "syncend": "1000GB", "type": "SYNC"}
-
-suri:
-  hosts:
-    st-12x20-1:
-      st_nodeid: "3"
-      st_path: "/beegfs/st3"
-      st_pool: "beegfs"
-      st_pools: 3
-      st_disks: 4
-      st_type: "raidz1"
-      st_devices: 
-        - { "device": 'STOSHIBA', "partition": 0, "size": "18.2TiB", "wipedisk": "no", "target": "", "raid": "ZFS"}
-      mt_nodeid: "3"
-      mt_path: "/beegfs/meta"
-      mt_pool: "meta"
-      mt_pools: 1
-      mt_disks: 2
-      mt_type: "mirror"
-      mt_devices: 
-        - { "device": "/dev/nvme0n1", "partition": 3, "start": "162GB", "end": "1024GB", "wipedisk": "no", "label": "SOLIDIGM", "type": "MIRROR"}
-        - { "device": "/dev/nvme1n1", "partition": 3, "start": "162GB", "end": "1024GB", "wipedisk": "no", "label": "SOLIDIGM", "type": "MIRROR"}
-    st-12x20-2:
-      st_nodeid: "4"
-      st_path: "/beegfs/st4"
-      st_pools: 3
-      st_pool: "beegfs"
-      st_disks: 4
-      st_type: "raidz1"
-      st_devices:
-        - { "device": 'STOSHIBA', "partition": 0, "size": "18.2TiB", "wipedisk": "no", "target": "", "raid": "ZFS"}
-      mt_nodeid: "4"
-      mt_path: "/beegfs/meta"
-      mt_pool: "meta"
-      mt_pools: 1
-      mt_disks: 2
-      mt_type: "mirror"
-      mt_devices: 
-        - { "device": "/dev/nvme0n1", "partition": 3, "start": "162GB", "end": "1024GB", "wipedisk": "no", "label": "SOLIDIGM", "type": "MIRROR"}
-        - { "device": "/dev/nvme1n1", "partition": 3, "start": "162GB", "end": "1024GB", "wipedisk": "no", "label": "SOLIDIGM", "type": "MIRROR"}
+        - { "device": "", "dir": 'meta', "partition": 0, "start": "-", "end": "-", "syncdir": "", "syncpart": 0, "syncend": "-", "type": "RAID"}
 
 beegfs:
   children:
-    san:
-    suri:
+    tess:
     mgmt:
     mon:
 
 compose:
   children:
     mgmt:
-    san:
-    suri:
+    tess:
 
 storage:
   children:
-    san:
-    suri:
+    tess:
 
 meta:
   children:
-    san:
-    suri:
+    tess:
 
 mgmt:
   hosts:
-    st-4x18-1:
+    as-bg01:
       mg_nodeid: "1"
       mg_path: "beegfs"
       mg_devices: 
@@ -93,5 +62,5 @@ mgmt:
 
 mon:
   hosts:
-    ci2:
+    as-bg02:
 
