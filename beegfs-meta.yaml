@@ -1,4 +1,4 @@
-- name: Beegfs Storage Volumes
+- name: Beegfs Meta Service
   hosts: meta
   become: yes
   tasks:
@@ -30,7 +30,7 @@
     - name: Create an ext4 filesystem on the new partition
       community.general.filesystem:
         fstype: ext4
-        opts: "-b 4096 -I 1024 -J size=400 -O dir_index,filetype"
+        opts: "-b 4096 -i 2048 -I 1024 -J size=400 -O dir_index,filetype"
         dev: "{{ item.device }}p{{ item.partition }}"
         state: present
       with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
@@ -168,11 +168,34 @@
       with_items: "{{ hostvars[inventory_hostname].mt_devices }} "
       when: item.type == "MIRROR"
 
+    - name: Create an ext4 filesystem on the new partition
+      community.general.filesystem:
+        fstype: ext4
+        opts: "-b 4096 -i 2048 -I 1024 -J size=400 -O dir_index,filetype"
+        dev: "{{ item.device }}{{ item.partition }}"
+        state: present
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "RAID"
+
+    - name: Label the ext4 filesystem
+      command: "tune2fs -L {{ item.dir }}{{ hostvars[inventory_hostname].mt_nodeid }} {{ item.device }}{{ item.partition }}"
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "RAID"
+
     - name: Create the directory for the metadata target
       file:
         path: "/{{ hostvars[inventory_hostname].mt_path }}/{{ item.dir }}"
         state: directory
         mode: '0755'
+      with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
+      when: item.type == "RAID"
+
+    - name: Mount the meta target filesystem
+      ansible.posix.mount:
+        path: "/{{ hostvars[inventory_hostname].mt_path }}/{{ item.dir }}"
+        src: LABEL={{ item.dir }}{{ hostvars[inventory_hostname].mt_nodeid }}
+        fstype: ext4
+        state: mounted
       with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
       when: item.type == "RAID"
 
@@ -286,7 +309,7 @@
         state: enabled
         permanent: true
         immediate: true
-        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="8003-8010" protocol="tcp" accept'
+        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="{{ beegfs_port_begin }}-{{ beegfs_port_end }}" protocol="tcp" accept'
       loop:
         - 10.88.0.0/16
         - 10.15.0.0/16
@@ -297,7 +320,7 @@
         state: enabled
         permanent: true
         immediate: true
-        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="8003-8010" protocol="udp" accept'
+        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="{{ beegfs_port_begin }}-{{ beegfs_port_end }}" protocol="udp" accept'
       loop:
         - 10.88.0.0/16
         - 10.15.0.0/16

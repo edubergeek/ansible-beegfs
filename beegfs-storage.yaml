@@ -25,6 +25,7 @@
         fstype: xfs
         #dev: "{{ item.device }}1"
         dev: "/dev/disk/by-path/pci-0000:{{ item.scsi }}:00.0-scsi-0:{{ item.port }}:{{ item.drive }}:0-part1"
+        opts: "-d su=64k,sw=3 -l version=2,su=64k -isize=512"
         state: present
       with_items: "{{ hostvars[inventory_hostname].st_devices }}"
       when: item.raid == "RAID"
@@ -47,6 +48,7 @@
         path: "{{ hostvars[inventory_hostname].st_path }}/{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}"
         src: LABEL={{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}
         fstype: xfs
+        opts: "noatime,nodiratime,logbufs=8,logbsize=256k,largeio,inode64,swalloc"
         state: mounted
       with_items: "{{ hostvars[inventory_hostname].st_devices }}"
       when: item.raid == "RAID"
@@ -206,7 +208,7 @@
         state: enabled
         permanent: true
         immediate: true
-        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="8003-8010" protocol="tcp" accept'
+        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="{{ beegfs_port_begin }}-{{ beegfs_port_end }}" protocol="tcp" accept'
       loop:
         - 10.88.0.0/16
         - 10.15.0.0/16
@@ -217,7 +219,7 @@
         state: enabled
         permanent: true
         immediate: true
-        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="8003-8010" protocol="udp" accept'
+        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="{{ beegfs_port_begin }}-{{ beegfs_port_end }}" protocol="udp" accept'
       loop:
         - 10.88.0.0/16
         - 10.15.0.0/16

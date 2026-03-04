@@ -100,26 +100,26 @@
 #        path: /tmp/mkcompose
 #        state: absent
 
-    - name: Remove existing beegfs firewall rules for TCP
-      ufw:
-        rule: allow
-        port: 8003:8010
-        proto: tcp
-        delete: true
-      when: ansible_os_family == "Debian"
-
-    - name: Remove existing beegfs firewall rules for UDP
-      ufw:
-        rule: allow
-        port: 8003:8010
-        proto: udp
-        delete: true
-      when: ansible_os_family == "Debian"
+#    - name: Remove existing beegfs firewall rules for TCP
+#      ufw:
+#        rule: allow
+#        port: '{{ beegfs_port_begin }}:{{ beegfs_port_end }}'
+#        proto: tcp
+#        delete: true
+#      when: ansible_os_family == "Debian"
+#
+#    - name: Remove existing beegfs firewall rules for UDP
+#      ufw:
+#        rule: allow
+#        port: '{{ beegfs_port_begin }}:{{ beegfs_port_end }}'
+#        proto: udp
+#        delete: true
+#      when: ansible_os_family == "Debian"
 
     - name: Add beegfs firewall rules for TCP
       ufw:
         rule: allow
-        port: 8003:8010
+        port: '{{ beegfs_port_begin }}:{{ beegfs_port_end }}'
         proto: tcp
         src: '{{ item }}'
       loop:
@@ -130,7 +130,7 @@
     - name: Add beegfs firewall rules for UDP
       ufw:
         rule: allow
-        port: 8003:8010
+        port: '{{ beegfs_port_begin }}:{{ beegfs_port_end }}'
         proto: udp
         src: '{{ item }}'
       loop:
@@ -148,7 +148,7 @@
         state: enabled
         permanent: true
         immediate: true
-        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="8003-8010" protocol="tcp" accept'
+        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="{{ beegfs_port_begin }}-{{ beegfs_port_end }}" protocol="tcp" accept'
       loop:
         - 10.88.0.0/16
         - 10.15.0.0/16
@@ -159,7 +159,7 @@
         state: enabled
         permanent: true
         immediate: true
-        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="8003-8010" protocol="udp" accept'
+        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="{{ beegfs_port_begin }}-{{ beegfs_port_end }}" protocol="udp" accept'
       loop:
         - 10.88.0.0/16
         - 10.15.0.0/16
