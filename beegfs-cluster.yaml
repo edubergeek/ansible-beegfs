@@ -32,6 +32,38 @@ tess:
       mt_path: "beegfs"
       mt_devices: 
         - { "device": "", "dir": 'meta', "partition": 0, "start": "-", "end": "-", "syncdir": "", "syncpart": 0, "syncend": "-", "type": "RAID"}
+    as-bg03:
+      st_nodeid: "3"
+      st_path: "/beegfs"
+      st_prefix: "st"
+      id_pattern: "pci-0000:${scsi}:00.0-scsi-0:${port}:${drive}:0"
+      st_devices: 
+        - { "device": '/dev/sdb', "scsi": 'af', "port": "3", "drive": "106", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "1", "raid": "RAID"}
+        - { "device": '/dev/sdc', "scsi": 'af', "port": "3", "drive": "107", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "2", "raid": "RAID"}
+        - { "device": '/dev/sdd', "scsi": 'af', "port": "3", "drive": "108", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "3", "raid": "RAID"}
+        - { "device": '/dev/sde', "scsi": 'af', "port": "3", "drive": "109", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "4", "raid": "RAID"}
+        - { "device": '/dev/sdf', "scsi": 'af', "port": "3", "drive": "110", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "5", "raid": "RAID"}
+        - { "device": '/dev/sdg', "scsi": 'af', "port": "3", "drive": "111", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "6", "raid": "RAID"}
+      mt_nodeid: "3"
+      mt_path: "beegfs"
+      mt_devices: 
+        - { "device": "/dev/sda", "dir": 'meta', "partition": 3, "start": "1704MB", "end": "530GB", "syncdir": "", "syncpart": 0, "syncend": "-", "type": "RAID"}
+    as-bg04:
+      st_nodeid: "4"
+      st_path: "/beegfs"
+      st_prefix: "st"
+      id_pattern: "pci-0000:${scsi}:00.0-scsi-0:${port}:${drive}:0"
+      st_devices: 
+        - { "device": '/dev/sdb', "scsi": 'af', "port": "3", "drive": "106", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "1", "raid": "RAID"}
+        - { "device": '/dev/sdc', "scsi": 'af', "port": "3", "drive": "107", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "2", "raid": "RAID"}
+        - { "device": '/dev/sdd', "scsi": 'af', "port": "3", "drive": "108", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "3", "raid": "RAID"}
+        - { "device": '/dev/sde', "scsi": 'af', "port": "3", "drive": "109", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "4", "raid": "RAID"}
+        - { "device": '/dev/sdf', "scsi": 'af', "port": "3", "drive": "110", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "5", "raid": "RAID"}
+        - { "device": '/dev/sdg', "scsi": 'af', "port": "3", "drive": "111", "partition": 1, "size": "54.0TB", "wipedisk": "no", "target": "6", "raid": "RAID"}
+      mt_nodeid: "4"
+      mt_path: "beegfs"
+      mt_devices: 
+        - { "device": "/dev/sda", "dir": 'meta', "partition": 3, "start": "1704MB", "end": "530GB", "syncdir": "", "syncpart": 0, "syncend": "-", "type": "RAID"}
 
 beegfs:
   children:
