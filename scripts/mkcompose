@@ -30,6 +30,8 @@ compose_mgmt()
 {
   datapath=`test -d /beegfs/mgmt && echo /beegfs/mgmt`
   syncpath=`test -d /beegfs/sync && echo /beegfs/sync`
+  beemsg_port=$((8008 + BEEGFS_PORTSHIFT))
+  grpc_port=$((8010 + BEEGFS_PORTSHIFT))
   cat <<EOF >>$COMPOSE_FILE
   beegfs-mgmtd:
     container_name: beegfs-mgmtd
@@ -39,7 +41,7 @@ compose_mgmt()
       - "8010:8010"
       - "8008:8008/udp"
     privileged: true
-    command: "--db-file /data/mgmt/mgmtd.sqlite  --interfaces $BEEGFS_INTERFACES --log-target stderr --tls-disable false"
+    command: "--db-file /data/mgmt/mgmtd.sqlite  --interfaces $BEEGFS_INTERFACES --log-target stderr --tls-disable false --beemsg-port $beemsg_port --grpc-port $grpc_port"
     environment:
       - beegfs_setup_1=beegfs-mgmtd --init --db-file /data/mgmt/mgmtd.sqlite  --log-target stderr
     volumes:
@@ -81,7 +83,7 @@ compose_meta()
     image: ghcr.io/thinkparq/beegfs-meta:$BEEGFS_VERSION
     container_name: beegfs-meta
     privileged: true
-    command: "storeMetaDirectory=/data/meta storeAllowFirstRunInit=false connInterfacesList=$BEEGFS_INTERFACES sysMgmtdHost=$BEEGFS_MGMT_HOST connAuthFile=/etc/beegfs/conn.auth"
+    command: "storeMetaDirectory=/data/meta storeAllowFirstRunInit=false connInterfacesList=$BEEGFS_INTERFACES sysMgmtdHost=$BEEGFS_MGMT_HOST connAuthFile=/etc/beegfs/conn.auth connPortShift=$BEEGFS_PORTSHIFT"
     environment:
       - beegfs_setup_1=beegfs-setup-meta -C -p /data/meta -s $BEEGFS_NODEID -S meta
     network_mode: "host"
@@ -129,7 +131,7 @@ compose_storage()
     image: ghcr.io/thinkparq/beegfs-storage:$BEEGFS_VERSION
     container_name: beegfs-storage
     privileged: true    
-    command: "storeStorageDirectory=$BEEGFS_STORAGETARGETS storeAllowFirstRunInit=false connInterfacesList=$BEEGFS_INTERFACES sysMgmtdHost=$BEEGFS_MGMT_HOST connAuthFile=/etc/beegfs/conn.auth"
+    command: "storeStorageDirectory=$BEEGFS_STORAGETARGETS storeAllowFirstRunInit=false connInterfacesList=$BEEGFS_INTERFACES sysMgmtdHost=$BEEGFS_MGMT_HOST connAuthFile=/etc/beegfs/conn.auth connPortShift=$BEEGFS_PORTSHIFT"
     environment:
 EOF
 
