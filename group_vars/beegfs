@@ -8,3 +8,5 @@ cluster: beegfs
 beegfs_version: "8.1.0"
 beegfs_storage: "RAID"
 beegfs_meta: "RAID"
+beegfs_port_begin: 8023	# 8000 plust connPortShift
+beegfs_port_end: 8030	# 8010 plust connPortShift
