@@ -107,6 +107,7 @@
       apt:
         name:
           - vim
+          - ed
           - iputils-ping
           - net-tools
           - software-properties-common
@@ -118,6 +119,7 @@
       dnf:
         name:
           - vim
+          - ed
           - iputils
           - net-tools
         state: present
@@ -210,10 +212,12 @@
     - name: Add InfluxData repository (RedHat/CentOS)
       yum_repository:
         name: influxdb
-        description: InfluxDB Repository
+        description: InfluxDB Repository - Stable
         baseurl: https://repos.influxdata.com/rhel/$releasever/$basearch/stable
+        #baseurl = https://repos.influxdata.com/stable/$basearch/main
         gpgcheck: yes
-        gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
+        gpgkey: https://repos.influxdata.com/influxdata-archive.key
+        #gpgkey: https://repos.influxdata.com/influxdata-archive_compat.key
         enabled: yes
       when: ansible_os_family == "RedHat"
 
