@@ -1,0 +1,61 @@
+#!/bin/bash
+
+#case "$1" in
+#""|backup)
+#  cd /beegfs/meta
+#  tar czf /beegfs/sync/${thishost}_meta_${stamp}.tgz . --xattrs
+#  su -c "scp /beegfs/sync/${thishost}_meta_${stamp}.tgz ${synchost}:/beegfs/sync" beegfs
+#  ;;
+#prune)
+#  cd /beegfs/sync
+#  N=`ls *.tgz | wc -l`
+#  if (( $N > ${keepN} ))
+#  then
+#    pruneN=$(( N - keepN ))
+#    pruned=`ls -t *.tgz | tail -${pruneN}`
+#    rm -f $pruned
+#  fi
+#esac
+
+# mode is mgmt | meta | purge
+mode=$1
+
+thishost={{ THIS_HOST }}
+synchost={{ SYNC_HOST }}
+
+stamp=`date "+%Y-%m-%d"`
+keepN=5
+dest=/beegfs/sync
+
+case $mode in
+mgmt)
+  src=/beegfs/mgmt
+  mkdir -p $dest
+  echo Backing up $src to $dest
+  ;;
+meta)
+  src=/beegfs/meta
+  mkdir -p $dest
+  echo Backing up $src to $dest
+  ;;
+purge|prune)
+  dir=/beegfs/sync
+  today=`date`
+  ls -t $dir | grep meta_backup | tail -n+${keepN} | while read backup; do rm -f $dir/$backup; echo Purged $backup on $today; done
+  ls -t $dir | grep mgmt_backup | tail -n+${keepN} | while read backup; do rm -f $dir/$backup; echo Purged $backup on $today; done
+  exit 0
+  ;;
+*)
+  echo "ERRROR: invalid mode - $mode"
+  exit 1
+esac
+
+cd $src
+backup_tarball=${dest}/${thishost}_${mode}_backup_$(date +'%F_%T').tgz
+tar cpzf $backup_tarball . --xattrs
+
+ls -l $backup_tarball
+su -c "scp $backup_tarball ${synchost}:/beegfs/sync" beegfs
+
+exit 0
+

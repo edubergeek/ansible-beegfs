@@ -1,0 +1,237 @@
+- name: Beegfs storage client
+  hosts: client
+  become: yes
+
+  tasks:
+    - name: Extract beegfs network interface name
+      set_fact:
+        beegfs_interface: "{{ ansible_interfaces | map('regex_replace', '^', 'ansible_') | map('extract', hostvars[inventory_hostname]) | selectattr('ipv4', 'defined') | selectattr('ipv4.address', 'match', '^' ~ (network_prefix | regex_escape)) | map(attribute='device') | first | default('none') }}"
+
+    - name: Create mount directories e.g. for beegfs client
+      file:
+        path: "{{ beegfs_mountpath }}/{{ beegfs_mountdir }}"
+        state: directory
+        mode: '0755'
+#      when: item.type == "MOUNT"
+
+    - name: Add fstab entry for beegfs
+      mount:
+        fstype: beegfs
+        src: beegfs_nodev
+        opts: "rw,relatime,cfgFile=/etc/beegfs/beegfs-client.conf,_netdev"
+        path: "{{ beegfs_mountpath }}/{{ beegfs_mountdir }}"
+        state: present
+
+    - name: Restart systemd
+      systemd_service:
+        daemon_reexec: true
+
+    - name: Download the Beegfs GPG key
+      get_url:
+        url: "https://www.beegfs.io/release/beegfs_{{ beegfs_version }}/gpg/GPG-KEY-beegfs"
+        dest: /etc/apt/trusted.gpg.d/beegfs.asc
+        mode: '0644'
+      when: ansible_os_family == "Debian"
+
+    - name: Download the Beegfs GPG key
+      command:
+        cmd: "rpm --import https://www.beegfs.io/release/beegfs_{{ beegfs_version }}/gpg/GPG-KEY-beegfs"
+      when: ansible_os_family == "RedHat"
+
+    - name: Set up Beegfs repository
+      get_url:
+        url: "https://www.beegfs.io/release/beegfs_{{ beegfs_version }}/dists/beegfs-{{ ansible_distribution_release }}.list"
+        dest: /etc/apt/sources.list.d/beegfs.list
+        mode: '0644'
+      when: ansible_os_family == "Debian"
+
+    - name: Set up Beegfs repository
+      get_url:
+        url: "https://www.beegfs.io/release/beegfs_{{ beegfs_version }}/dists/beegfs-rhel{{ ansible_distribution_major_version }}.repo"
+        dest: /etc/yum.repos.d/beegfs.repo
+        mode: '0644'
+      when: ansible_os_family == "RedHat"
+
+    - name: Update APT package index after adding Beegfs repository
+      apt:
+        name: "*"
+        state: latest
+        only_upgrade: yes
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Update DNF package index after adding Beegfs repository
+      dnf:
+        name: "*"
+        state: latest
+        update_only: yes
+        update_cache: yes
+      when: ansible_os_family == "RedHat"
+
+    - name: Install kernel develop and headers needed for DKMS packages
+      package:
+        name:
+          - kernel-devel
+          - kernel-headers
+        state: present
+
+    - name: Add static host entry for Beegfs mgmtd host
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '.*{{ beegfs_mgmt_host }}$'
+        line: "{{ beegfs_mgmt_ip }} {{ beegfs_mgmt_host}}"
+        state: present
+
+    - name: Install beegfs-client and utilities
+      apt:
+        name: 
+          - beegfs-tools
+          - beegfs-utils
+          - beegfs-client-dkms
+        force_apt_get: true
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install beegfs-client and utilities
+      package:
+        name: 
+          - beegfs-tools
+          - beegfs-utils
+          - beegfs-client-dkms
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Load the beegfs kernel module
+      command:
+        cmd: "modprobe beegfs"
+      when: ansible_os_family == "RedHat"
+
+    - name: Autoload the beegfs kernel module at boot
+      command:
+        cmd: "echo beegfs >/etc/modules-load.d/beegfs-client-dkms.conf"
+        creates: /etc/modules-load.d/beegfs-client-dkms.conf
+      when: ansible_os_family == "RedHat"
+
+    - name: Preconfigure beegfs-client
+      command:
+        cmd: "/opt/beegfs/sbin/beegfs-setup-client -m {{ beegfs_mgmt_ip }}"
+        creates: /etc/beegfs/beegfs-client.conf
+
+    - name: Configure beegfs-client
+      lineinfile:
+        path: /etc/beegfs/beegfs-client.conf
+        regexp: "^({{ item.0 }}.*=).*$"
+        line: '\1 {{ item.1 }}'
+        backrefs: yes
+      loop:
+        - ["sysMgmtdHost ", "{{ beegfs_mgmt_ip }}"]
+        - ["connAuthFile", "/etc/beegfs/conn.auth"]
+        - ["connPortShift ", "{{ beegfs_portshift }}"]
+        - ["connInterfacesFile  ", "/etc/beegfs/conn.interfaces"]
+
+    - name: Configure connInterfacesFile
+      lineinfile:
+        path: /etc/beegfs/conn.interfaces
+        regexp: '^{{ beegfs_interface }}'
+        line: '{{ beegfs_interface }}'
+        create: true
+
+    - name: Create mount configuration
+      copy:
+        content: "{{ beegfs_mountpath }}/{{ beegfs_mountdir }} /etc/beegfs/beegfs-client.conf\n"
+        dest: /etc/beegfs/beegfs-mounts.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Copy TLS cert
+      copy:
+        src: files/cert.pem
+        dest: /etc/beegfs/cert.pem
+        owner: root
+        group: root
+        mode: '0400'
+
+    - name: Copy TLS key
+      copy:
+        src: files/key.pem
+        dest: /etc/beegfs/key.pem
+        owner: root
+        group: root
+        mode: '0400'
+
+    - name: Copy security configuration
+      copy:
+        src: files/conn.auth
+        dest: /etc/beegfs
+        owner: root
+        group: root
+        mode: '0400'
+
+    - name: Remove existing beegfs firewall rules for TCP
+      ufw:
+        rule: allow
+        port: 8003:8010
+        proto: tcp
+        delete: true
+      when: ansible_os_family == "Debian"
+
+    - name: Remove existing beegfs firewall rules for UDP
+      ufw:
+        rule: allow
+        port: 8003:8010
+        proto: udp
+        delete: true
+      when: ansible_os_family == "Debian"
+
+    - name: Add beegfs firewall rules for TCP
+      ufw:
+        rule: allow
+        port: 8003:8010
+        proto: tcp
+        src: '{{ item }}'
+      loop:
+        - 10.15.0.0/24
+      when: ansible_os_family == "Debian"
+
+    - name: Add beegfs firewall rules for UDP
+      ufw:
+        rule: allow
+        port: 8003:8010
+        proto: udp
+        src: '{{ item }}'
+      loop:
+        - 10.15.0.0/24
+      when: ansible_os_family == "Debian"
+
+    - name: Enable ufw
+      ufw:
+        state: enabled
+      when: ansible_os_family == "Debian"
+
+    - name: Add beegfs firewall rules for TCP
+      firewalld:
+        state: enabled
+        permanent: true
+        immediate: true
+        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="{{ beegfs_port_begin }}-{{ beegfs_port_end }}" protocol="tcp" accept'
+      loop:
+        - 10.15.0.0/24
+      when: ansible_os_family == "RedHat"
+
+    - name: Add beegfs firewall rules for UDP
+      firewalld:
+        state: enabled
+        permanent: true
+        immediate: true
+        rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="{{ beegfs_port_begin }}-{{ beegfs_port_end }}" protocol="udp" accept'
+      loop:
+        - 10.15.0.0/24
+      when: ansible_os_family == "RedHat"
+
+    - name: Enable firewall
+      service:
+        name: firewalld
+        enabled: true
+        state: started
+      when: ansible_os_family == "RedHat"

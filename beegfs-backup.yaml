@@ -1,0 +1,62 @@
+---
+- name: Configure beegfs backup / sync script and cron
+  hosts: beegfs
+  become: true
+  vars:
+    # This maps your inventory host variable to the template's variable name
+    THIS_HOST: "{{ inventory_hostname }}"
+    SYNC_HOST: "{{ hostvars[inventory_hostname]['mt_synchost'] }}"
+
+  tasks:
+    # ---------------------------------------------------------
+    # 1. Create the beegfs etc directory in /usr/local/beegfs
+    # ---------------------------------------------------------
+    - name: Ensure destination directory exists
+      ansible.builtin.file:
+        path: "/usr/local/src/beegfs/etc"
+        state: directory
+        owner: root
+        group: root
+        mode: '0770'
+
+    - name: Ensure log directory exists
+      ansible.builtin.file:
+        path: "/usr/local/src/beegfs/log"
+        state: directory
+        owner: root
+        group: root
+        mode: '0770'
+
+    # ---------------------------------------------------------
+    # 2. Install the beegfs-backup.sh script 
+    # ---------------------------------------------------------
+    - name: Deploy and render the Bash script template
+      ansible.builtin.template:
+        src: files/backup-sync.sh.j2
+        dest: "/usr/local/src/beegfs/etc/backup-sync.sh"
+        owner: root
+        group: root
+        mode: '0750' # Makes the script executable
+
+    # ---------------------------------------------------------
+    # 3. Install the beegfs-backup.sh cron jobs
+    # ---------------------------------------------------------
+    - name: Deploy backup meta job to cron.d
+      ansible.builtin.cron:
+        name: "Beegfs Backup"
+        cron_file: "beegfs-meta"
+        user: "root"
+        minute: "30"
+        hour: "1"
+        job: |
+          bash /usr/local/src/beegfs/etc/backup-sync.sh meta >>/usr/local/src/beegfs/log/backup.log 2>&1
+
+    - name: Deploy backup prune job to cron.d
+      ansible.builtin.cron:
+        name: "Beegfs Backup Prune"
+        cron_file: "beegfs-prune"
+        user: "root"
+        minute: "0"
+        hour: "11"
+        job: |
+          bash /usr/local/src/beegfs/etc/backup-sync.sh prune >>/usr/local/src/beegfs/log/backup.log 2>&1
