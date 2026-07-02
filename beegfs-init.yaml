@@ -32,6 +32,16 @@
       when: (debian_update.changed) or (redhat_update.changed)
 
     # ---------------------------------------------------------
+    # 2. EPEL Install EPEL Repo for RHEL hosts
+    # ---------------------------------------------------------
+    - name: Enable the epel repo for RHEL systems
+      package:
+        name:
+          - epel-release
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    # ---------------------------------------------------------
     # 2. NTP CONFIGURATION (Replace chronyd/timesyncd)
     # ---------------------------------------------------------
     - name: Ensure conflicting time services are stopped and removed

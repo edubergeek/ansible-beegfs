@@ -65,9 +65,94 @@ tess:
       mt_devices: 
         - { "device": "/dev/sda", "dir": 'meta', "partition": 3, "start": "1704MB", "end": "530GB", "syncdir": "", "syncpart": 0, "syncend": "-", "type": "RAID"}
 
+st1114:
+  hosts:
+    as-bg05:
+      st_nodeid: "5"
+      st_path: "/beegfs"
+      st_prefix: "st"
+      id_pattern: "pci-0000:${scsi}:00.0-scsi-0:${port}:${drive}:0"
+      st_devices: 
+        - { "device": '/dev/sda', "scsi": 'c1', "port": "2", "drive": "0", "partition": 1, "size": "90.0TB", "start": "0%", "end": "100%", "wipedisk": "no", "target": "1", "raid": "RAID"}
+        - { "device": '/dev/sdb', "scsi": 'c1', "port": "2", "drive": "1", "partition": 1, "size": "90.0TB", "start": "0%", "end": "100%", "wipedisk": "no", "target": "2", "raid": "RAID"}
+      mt_nodeid: "5"
+      mt_path: "beegfs"
+      mt_devices: 
+        - { "device": "", "dir": 'meta', "partition": 0, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
+    as-bg06:
+      st_nodeid: "6"
+      st_path: "/beegfs"
+      st_prefix: "st"
+      id_pattern: "pci-0000:${scsi}:00.0-scsi-0:${port}:${drive}:0"
+      st_devices: 
+        - { "device": '/dev/sda', "scsi": 'c1', "port": "2", "drive": "0", "partition": 1, "size": "90.0TB", "start": "0%", "end": "100%", "wipedisk": "no", "target": "1", "raid": "RAID"}
+        - { "device": '/dev/sdb', "scsi": 'c1', "port": "2", "drive": "1", "partition": 1, "size": "90.0TB", "start": "0%", "end": "100%", "wipedisk": "no", "target": "2", "raid": "RAID"}
+      mt_nodeid: "6"
+      mt_path: "beegfs"
+      mt_devices: 
+        - { "device": "", "dir": 'meta', "partition": 0, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
+    as-bg07:
+      st_nodeid: "7"
+      st_path: "/beegfs"
+      st_prefix: "st"
+      id_pattern: "pci-0000:${scsi}:00.0-scsi-0:${port}:${drive}:0"
+      st_devices: 
+        - { "device": '/dev/sda', "scsi": 'c1', "port": "2", "drive": "0", "partition": 1, "size": "90.0TB", "start": "0%", "end": "100%", "wipedisk": "no", "target": "1", "raid": "RAID"}
+        - { "device": '/dev/sdb', "scsi": 'c1', "port": "2", "drive": "1", "partition": 1, "size": "90.0TB", "start": "0%", "end": "100%", "wipedisk": "no", "target": "2", "raid": "RAID"}
+      mt_nodeid: "7"
+      mt_path: "beegfs"
+      mt_devices: 
+        - { "device": "", "dir": 'meta', "partition": 0, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
+    as-bg08:
+      st_nodeid: "8"
+      st_path: "/beegfs"
+      st_prefix: "st"
+      id_pattern: "pci-0000:${scsi}:00.0-scsi-0:${port}:${drive}:0"
+      st_devices: 
+        - { "device": '/dev/sda', "scsi": 'c1', "port": "2", "drive": "0", "partition": 1, "size": "90.0TB", "start": "0%", "end": "100%", "wipedisk": "no", "target": "1", "raid": "RAID"}
+        - { "device": '/dev/sdb', "scsi": 'c1', "port": "2", "drive": "1", "partition": 1, "size": "90.0TB", "start": "0%", "end": "100%", "wipedisk": "no", "target": "2", "raid": "RAID"}
+      mt_nodeid: "8"
+      mt_path: "beegfs"
+      mt_devices: 
+        - { "device": "", "dir": 'meta', "partition": 0, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
+
+st0110:
+  hosts:
+    as-bg09:
+      st_nodeid: "9"
+      st_path: "/beegfs/st9"
+      st_pool: "st9"
+      st_type: "raidz"
+      st_pools: 1
+      st_disks: 4
+      st_devices: 
+        - { "device": 'ata-HGST_HUH', "partition": 0, "wipedisk": "no", "raid": "ZFS"}
+      mt_nodeid: "9"
+      mt_path: "beegfs"
+      mt_synchost: "as-bg10"
+      mt_devices: 
+        - { "device": "", "dir": 'meta', "partition": 0, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
+    as-bg10:
+      st_nodeid: "10"
+      st_path: "/beegfs/st10"
+      st_pool: "st10"
+      st_type: "raidz"
+      st_pools: 1
+      st_disks: 4
+      st_devices: 
+        - { "device": 'ata-HGST_HUH', "partition": 0, "wipedisk": "no", "raid": "ZFS"}
+      mt_nodeid: "10"
+      mt_path: "beegfs"
+      mt_synchost: "as-bg09"
+      mt_devices: 
+        - { "device": "/dev/nvme0n1p1", "dir": 'meta', "partition": 0, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
+
 beegfs:
   children:
     tess:
+    st0110:
+    st1114:
+    cascades:
     mgmt:
     mon:
 
@@ -79,10 +164,14 @@ compose:
 storage:
   children:
     tess:
+    st1114:
+    st0110:
 
 meta:
   children:
     tess:
+    st1114:
+    st0110:
 
 mgmt:
   hosts:
@@ -92,6 +181,23 @@ mgmt:
       mg_devices: 
         - { "device": "", "dir": 'mgmt', "partition": 0, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
 
+client:
+  children:
+    tess:
+    st1114:
+    st0110:
+    cascades:
+    compute:
+
+compute:
+  hosts:
+    asassn-c1:
+    asassn-c2:
+   
+cascades:
+  hosts:
+    pooskaus:
+   
 mon:
   hosts:
     as-bg02:

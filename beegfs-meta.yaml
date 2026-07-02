@@ -25,7 +25,7 @@
         part_start: "{{ item.start }}"
         part_end: "{{ item.end }}"
       with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
-      when: item.type == "SYNC"
+      when: item.type == "SYNC" and item.partition != 0
 
     - name: Create an ext4 filesystem on the new partition
       community.general.filesystem:
@@ -34,12 +34,12 @@
         dev: "{{ item.device }}p{{ item.partition }}"
         state: present
       with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
-      when: item.type == "SYNC"
+      when: item.type == "SYNC" and item.partition != 0
 
     - name: Label the ext4 filesystem
       command: "tune2fs -L {{ item.dir }}{{ hostvars[inventory_hostname].mt_nodeid }} {{ item.device }}p{{ item.partition }}"
       with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
-      when: item.type == "SYNC"
+      when: item.type == "SYNC" and item.partition != 0
 
     - name: Create the directory for the metadata target
       file:
@@ -47,7 +47,7 @@
         state: directory
         mode: '0755'
       with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
-      when: item.type == "SYNC"
+      when: item.type == "SYNC" and item.partition != 0
 
     - name: Mount the metadata target filesystem
       ansible.posix.mount:
@@ -56,7 +56,7 @@
         fstype: ext4
         state: mounted
       with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
-      when: item.type == "SYNC"
+      when: item.type == "SYNC" and item.partition != 0
 
     - name: Create a new primary partition for the sync target
       community.general.parted:
@@ -68,7 +68,7 @@
         part_start: "{{ item.end }}"
         part_end: "{{ item.syncend }}"
       with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
-      when: item.type == "SYNC"
+      when: item.type == "SYNC" and item.syncpart != 0
 
     - name: Create an ext4 filesystem on the sync partition
       community.general.filesystem:
@@ -77,12 +77,12 @@
         dev: "{{ item.device }}p{{ item.syncpart }}"
         state: present
       with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
-      when: item.type == "SYNC"
+      when: item.type == "SYNC" and item.syncpart != 0
 
     - name: Label the ext4 filesystem
       command: "tune2fs -L {{ item.syncdir }}{{ hostvars[inventory_hostname].mt_nodeid }} {{ item.device }}p{{ item.syncpart }}"
       with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
-      when: item.type == "SYNC"
+      when: item.type == "SYNC" and item.syncpart != 0
 
     - name: Create the directory for the sync target
       file:
@@ -99,7 +99,7 @@
         fstype: ext4
         state: mounted
       with_items: "{{ hostvars[inventory_hostname].mt_devices }}"
-      when: item.type == "SYNC"
+      when: item.type == "SYNC" and item.syncpart != 0
 
     - name: Install zfs
       apt:

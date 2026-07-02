@@ -10,7 +10,100 @@
           - zfs-dkms
           - libzfslinux-dev
         state: present
-      when: beegfs_storage == "ZFS" or beegfs_meta == "ZFS"
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: 
+        - item.raid == "ZFS"
+        - ansible_os_family == "Debian"
+
+    - name: Install OpenZFS repo
+      dnf:
+        name: "https://zfsonlinux.org/epel/zfs-release-2-2.el{{ ansible_distribution_major_version }}.noarch.rpm"
+        disable_gpg_check: true
+        state: present
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: 
+        - item.raid == "ZFS"
+        - ansible_os_family == "RedHat"
+
+    - name: Install zfs dependencies
+      dnf:
+        name:
+          - snapd
+          - dkms
+          - kernel-devel
+        state: present
+          #update_cache: yes
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: 
+        - item.raid == "ZFS"
+        - ansible_os_family == "RedHat"
+
+    - name: Enable snapd
+      service:
+        name: snapd
+        enabled: true
+        state: started
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: 
+        - item.raid == "ZFS"
+        - ansible_os_family == "RedHat"
+      register: task_output
+
+    - name: Reboot server and wait for it to come back
+      ansible.builtin.reboot:
+        msg: "Force reboot"
+        connect_timeout: 5
+        reboot_timeout: 600
+        pre_reboot_delay: 1
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: 
+        - item.raid == "ZFS"
+        - ansible_os_family == "RedHat"
+        - task_output.changed
+
+    - name: Install lxd
+      community.general.snap:
+        name: lxd
+        state: present
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: 
+        - item.raid == "ZFS"
+        - ansible_os_family == "RedHat"
+
+    - name: Install zfs
+      dnf:
+        name:
+          - zfs
+        state: present
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: 
+        - item.raid == "ZFS"
+        - ansible_os_family == "RedHat"
+
+    - name: Configure sysctl values for lxd
+      copy:
+        src: ./files/90-lxd-override.conf
+        dest: /etc/sysctl.d/90-lxd-override.conf
+        mode: 'u=rw-,g=r--'
+        force: yes
+      register: task_output
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: 
+        - item.raid == "ZFS"
+        - ansible_os_family == "RedHat"
+
+    - name: Reboot server and wait for it to come back
+      ansible.builtin.reboot:
+        msg: "Force reboot"
+        connect_timeout: 5
+        reboot_timeout: 600
+        pre_reboot_delay: 1
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: 
+        - item.raid == "ZFS"
+        - ansible_os_family == "RedHat"
+        - task_output.changed
+
 
     - name: Collect disk info
       parted:
@@ -20,18 +113,30 @@
       with_items: "{{ hostvars[inventory_hostname].st_devices }}"
       when: item.raid == "RAID"
 
+    - name: Create a new primary partition for the metadata target
+      community.general.parted:
+        device: "{{ item.device }}"
+        number: "{{ item.partition }}"
+        label: gpt
+        state: present
+        fs_type: xfs
+        part_start: "{{ item.start }}"
+        part_end: "{{ item.end }}"
+      with_items: "{{ hostvars[inventory_hostname].st_devices }}"
+      when: item.raid == "RAID" and item.partition != 0
+
     - name: Create an XFS filesystem on the new partition
       community.general.filesystem:
         fstype: xfs
-        #dev: "{{ item.device }}1"
-        dev: "/dev/disk/by-path/pci-0000:{{ item.scsi }}:00.0-scsi-0:{{ item.port }}:{{ item.drive }}:0-part1"
-        opts: "-d su=64k,sw=3 -l version=2,su=64k -isize=512"
+        dev: "{{ item.device }}"
+        opts: "-d su=1m,sw=6 -l version=2,su=128k -isize=512"
         state: present
       with_items: "{{ hostvars[inventory_hostname].st_devices }}"
       when: item.raid == "RAID"
 
     - name: Label the XFS filesystem
-      command: xfs_admin -L "{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}" "/dev/disk/by-path/pci-0000:{{ item.scsi }}:00.0-scsi-0:{{ item.port }}:{{ item.drive }}:0-part1"
+      #command: xfs_admin -L "{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}" "/dev/disk/by-path/pci-0000:{{ item.scsi }}:00.0-scsi-0:{{ item.port }}:{{ item.drive }}:0-part1"
+      command: xfs_admin -L "{{ hostvars[inventory_hostname].st_prefix }}{{ hostvars[inventory_hostname].st_nodeid }}{{ item.target }}" "{{ item.device }}"
       with_items: "{{ hostvars[inventory_hostname].st_devices }}"
       when: item.raid == "RAID"
 
@@ -53,7 +158,7 @@
       with_items: "{{ hostvars[inventory_hostname].st_devices }}"
       when: item.raid == "RAID"
 
-    - name: Copy scratch disk script
+    - name: Copy ZFS storage disk script
       copy:
         src: ./scripts/mkzfs
         dest: /tmp/mkzfs
