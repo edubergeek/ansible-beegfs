@@ -146,6 +146,34 @@ st0110:
       mt_synchost: "as-bg09"
       mt_devices: 
         - { "device": "/dev/nvme0n1p1", "dir": 'meta', "partition": 0, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
+    as-bg11:
+      st_nodeid: "11"
+      st_path: "/beegfs/st11"
+      st_pool: "st11"
+      st_type: "raidz"
+      st_pools: 1
+      st_disks: 4
+      st_devices: 
+        - { "device": 'ata-HGST_HUH', "partition": 0, "wipedisk": "yes", "raid": "ZFS"}
+      mt_nodeid: "11"
+      mt_path: "beegfs"
+      mt_synchost: "as-bg12"
+      mt_devices: 
+        - { "device": "/dev/nvme0n1p1", "dir": 'meta', "partition": 0, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
+    as-bg12:
+      st_nodeid: "12"
+      st_path: "/beegfs/st12"
+      st_pool: "st12"
+      st_type: "raidz"
+      st_pools: 1
+      st_disks: 4
+      st_devices: 
+        - { "device": 'ata-HGST_HUH', "partition": 0, "wipedisk": "yes", "raid": "ZFS"}
+      mt_nodeid: "12"
+      mt_path: "beegfs"
+      mt_synchost: "as-bg11"
+      mt_devices: 
+        - { "device": "/dev/nvme0n1p1", "dir": 'meta', "partition": 0, "start": "-", "end": "-", "syncdir": "sync", "syncpart": 0, "syncend": "-", "type": "SYNC"}
 
 beegfs:
   children:

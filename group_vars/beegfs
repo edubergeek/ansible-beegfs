@@ -1,14 +1,14 @@
 ansible_port: 22
-ansible_user: "{{ lookup('env', 'ANSIBLE_ACCOUNT file=.env') }}"
+ansible_user: "{{ lookup('ini', 'ANSIBLE_ACCOUNT', file='ansible.ini') }}"
 ansible_become: true
 ansible_become_method: sudo
 ansible_python_interpreter: /usr/bin/python3
 cluster: beegfs
-network_prefix: "{{ lookup('env', 'BEEGFS_NETWORK_PREFIX file=.env') }}"
+network_prefix: "{{ lookup('ini', 'BEEGFS_NETWORK_PREFIX', file='ansible.ini') }}"
 beegfs_version: "8.1.0"
 beegfs_storage: "RAID"
 beegfs_meta: "RAID"
-beegfs_mgmt_ip: "{{ lookup('env', 'BEEGFS_MGMT_IP file=.env') }}"
+beegfs_mgmt_ip: "{{ lookup('ini', 'BEEGFS_MGMT_IP', file='ansible.ini') }}"
 beegfs_mgmt_host: "as-bg01"
 beegfs_portshift: 20	# connPortShift
 beegfs_port_begin: 8023	# 8000 plust connPortShift

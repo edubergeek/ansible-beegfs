@@ -1,5 +1,5 @@
 - name: Beegfs Show Host Info
-  hosts: tess
+  hosts: beegfs
   become: yes
   tasks:
     - name: Show device information

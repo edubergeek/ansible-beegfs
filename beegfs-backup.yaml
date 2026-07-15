@@ -27,6 +27,14 @@
         group: root
         mode: '0770'
 
+    - name: Ensure sync directory exists
+      ansible.builtin.file:
+        path: "/beegfs/sync"
+        state: directory
+        owner: root
+        group: beegfs
+        mode: '0770'
+
     # ---------------------------------------------------------
     # 2. Install the beegfs-backup.sh script 
     # ---------------------------------------------------------
